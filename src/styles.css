@@ -1,0 +1,23 @@
+:root {
+  --bg: #0f1220;
+  --panel: #161a2f;
+  --border: rgba(255, 255, 255, 0.12);
+  --text: #eaeaf0;
+  --muted: #9aa0c3;
+  --accent: #4f7cff;
+  --accent-hover: #3b64e6;
+  --danger: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: radial-gradient(900px 600px at 20% 0%, rgba(79,124,255,0.15), transparent),
+              var(--bg);
+  color: var(--text);
+}

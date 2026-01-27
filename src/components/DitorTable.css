@@ -1,0 +1,169 @@
+.table-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 24px;
+}
+
+.table-header h3 {
+  margin: 0;
+  color: #ffffff;
+}
+
+.table-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+}
+
+.table-filters input,
+.table-filters select {
+  height: 32px;
+  padding: 4px 8px;
+  background: #020617;
+  color: #ffffff;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+}
+
+.reset-btn {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.reset-btn:hover {
+  border-color: #64748b;
+  color: #ffffff;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table thead th {
+  background: #020617;
+  color: #cbd5f5;
+  font-size: 13px;
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #1e293b;
+}
+
+.data-table tbody td {
+  padding: 8px;
+  border-bottom: 1px solid #1e293b;
+  color: #ffffff;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.data-table tbody tr:hover {
+  background: #020617;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.data-table button:hover {
+  opacity: 1;
+}
+
+/* FILTER BAR */
+
+.filter-bar th {
+  background: linear-gradient(180deg, #0c1530, #081024);
+  padding: 1px;
+  border-bottom: 1px solid #1f2a44;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: end;
+  padding: 24px
+}
+
+.filters-grid label {
+  font-size: 11px;
+  color: #9fb3d9;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.filters-grid input,
+.filters-grid select {
+  width: 100%;
+  height: 34px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #1f2a44;
+  background-color: #0b1430;
+  color: #ffffff;
+}
+
+.filters-grid input:focus,
+.filters-grid select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* RESET BUTTON */
+
+.reset-box {
+  display: flex;
+  align-items: flex-end;
+}
+
+.reset-btn {
+  height: 34px;
+  width: 100%;
+  border-radius: 6px;
+  border: none;
+  background: #1f2937;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.reset-btn:hover {
+  background: #374151;
+}
+
+.report-actions {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+  align-items: center;
+}
+
+.report-actions button {
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.back-btn {
+  margin-left: auto;
+  background: #eee;
+}
+
+.report-table th,
+.report-table td {
+  text-align: center !important;
+  vertical-align: middle !important;
+}

@@ -1,0 +1,128 @@
+/* ===============================
+   REPORT CONTAINER
+   =============================== */
+
+.report-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.report-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* ===============================
+   FILTERS
+   =============================== */
+
+.report-filters {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.report-filters input,
+.report-filters select {
+  height: 34px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  font-size: 13px;
+  color: #111827;
+}
+
+.report-filters input:focus,
+.report-filters select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.report-filters button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: none;
+  background-color: #6b7280;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.report-filters button:hover {
+  background-color: #4b5563;
+}
+
+/* ===============================
+   TABLE
+   =============================== */
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.report-table thead th {
+  background-color: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.report-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.report-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* ===============================
+   NUMERIC COLUMNS
+   =============================== */
+
+.report-table td:nth-child(2),
+.report-table td:nth-child(3),
+.report-table td:nth-child(4),
+.report-table td:nth-child(5),
+.report-table td:nth-child(6),
+.report-table td:nth-child(7),
+.report-table td:nth-child(8),
+.report-table td:nth-child(9) {
+  text-align: right;
+}
+
+/* ===============================
+   EMPHASIS
+   =============================== */
+
+.report-table td b {
+  color: #065f46;
+  font-weight: 600;
+}
+
+/* ===============================
+   EMPTY STATE
+   =============================== */
+
+.report-table tbody tr td[colspan] {
+  text-align: center;
+  color: #6b7280;
+  padding: 24px;
+}
