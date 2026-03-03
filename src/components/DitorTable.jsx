@@ -160,12 +160,11 @@ export default function DitorTable() {
         <div>
           <label>Produkti</label>
           <select
-            value={filters.produkti_id}
-            onChange={e =>
-              setFilters({ ...filters, produkti_id: e.target.value })
-            }
+            value={form.produkti_id}
+            disabled={!produkte.length}
+            onChange={e => setField("produkti_id", e.target.value)}
           >
-            <option value="">All</option>
+            <option value="">Select</option>
             {produkte.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
@@ -175,12 +174,10 @@ export default function DitorTable() {
         <div>
           <label>Monedha</label>
           <select
-            value={filters.monedha_id}
-            onChange={e =>
-              setFilters({ ...filters, monedha_id: e.target.value })
-            }
+            value={form.monedha_id}
+            onChange={e => setField("monedha_id", e.target.value)}
           >
-            <option value="">All</option>
+            <option value="">Select</option>
             {monedha.map(m => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
@@ -188,14 +185,12 @@ export default function DitorTable() {
         </div>
 
         <div>
-          <label>Bleresi/Shitesi</label>
+          <label>Bleresi / Shitesi</label>
           <select
-            value={filters.bleresi_id}
-            onChange={e =>
-              setFilters({ ...filters, bleresi_id: e.target.value })
-            }
+            value={form.bleresi_shitesi_id}
+            onChange={e => setField("bleresi_shitesi_id", e.target.value)}
           >
-            <option value="">All</option>
+            <option value="">Select</option>
             {bleresit.map(b => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
