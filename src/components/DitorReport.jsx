@@ -37,9 +37,10 @@ const GROUP_BY_OPTIONS = [
 ];
 
 export default function DitorReport() {
+  const navigate = useNavigate();
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -844,10 +845,10 @@ export default function DitorReport() {
             <div className="dr-summary-value">{formatNumber(topSummary.outQty)}</div>
           </div>
           <div className="dr-summary-card">
-            <div className="dr-summary-label">Sasia në Mbyllje</div>
             <div className={`dr-summary-value ${isNegative(topSummary.closingQty) ? "neg" : ""}`}>
               {formatNumber(topSummary.closingQty)}
             </div>
+            <div className="dr-summary-label bottom">Sasia në Mbyllje</div>
           </div>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Vlera në Hapje</div>
@@ -891,7 +892,7 @@ export default function DitorReport() {
               </button>
               <button
                 className="dr-btn dr-btn-dark"
-                onClick={() => (window.location.href = "/dashboard")}
+                onClick={() => navigate("/dashboard")}
               >
                 Kthehu tek Hyrja
               </button>
