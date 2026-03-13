@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS } from "../lib/categoryIds";
 import jsPDF from "jspdf";
@@ -38,6 +39,7 @@ const GROUP_BY_OPTIONS = [
 export default function DitorReport() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const [filters, setFilters] = useState({
     fromDate: "",
