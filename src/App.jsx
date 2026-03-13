@@ -7,7 +7,7 @@ import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import DitorReport from "./components/DitorReport";
 
-function GlobalLogoutButton() {
+function GlobalLogoutBar() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -15,42 +15,46 @@ function GlobalLogoutButton() {
 
   async function handleLogout() {
     const { error } = await supabase.auth.signOut();
-
     if (error) {
       console.error("Logout error:", error);
       return;
     }
-
     navigate("/login", { replace: true });
   }
 
   return (
-    <button
-      onClick={handleLogout}
+    <div
       style={{
-        position: "fixed",
-        top: "14px",
-        right: "16px",
-        zIndex: 9999,
-        padding: "10px 16px",
-        borderRadius: "10px",
-        border: "none",
-        background: "#0f172a",
-        color: "#fff",
-        fontWeight: 600,
-        cursor: "pointer",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.18)"
+        width: "100%",
+        display: "flex",
+        justifyContent: "flex-end",
+        padding: "10px 16px 0 16px",
+        boxSizing: "border-box",
+        background: "transparent"
       }}
     >
-      Logout
-    </button>
+      <button
+        onClick={handleLogout}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "10px",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "#111827",
+          color: "#fff",
+          fontWeight: 600,
+          cursor: "pointer"
+        }}
+      >
+        Logout
+      </button>
+    </div>
   );
 }
 
 export default function App() {
   return (
     <>
-      <GlobalLogoutButton />
+      <GlobalLogoutBar />
 
       <Routes>
         <Route path="/login" element={<Login />} />
