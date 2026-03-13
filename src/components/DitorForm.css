@@ -1,112 +1,148 @@
-.card {
-  background: #0f172a;
-  border: 1px solid #1e293b;
-  border-radius: 8px;
-  padding: 20px;
-  max-width: 1100px;
+/* Base card */
+.card{
+  background: linear-gradient(180deg, var(--surface), var(--surface2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadowSm);
+  padding: 16px;
+  max-width: none;
 }
 
-.card-header h3 {
-  margin: 0;
-  color: #ffffff;
+/* Modal version */
+.card--modal{
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 24px 80px rgba(0,0,0,.45);
 }
 
-.subtitle {
-  color: #94a3b8;
-  font-size: 13px;
-}
-
-.form-grid {
+/* GRID base */
+.form-grid{
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-top: 20px;
+  gap: 12px;
 }
 
-.form-grid label {
-  display: block;
-  font-size: 12px;
-  color: #94a3b8;
-  margin-bottom: 4px;
+/* Create mode -> 2 columns (desktop) */
+.form-grid--2col{
+  grid-template-columns: 1fr;
+}
+@media (min-width: 760px){
+  .form-grid--2col{
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
+/* Modal edit -> 3 columns (desktop), 2 columns (tablet), 1 (mobile) */
+.form-grid--3col{
+  grid-template-columns: 1fr;
+}
+@media (min-width: 760px){
+  .form-grid--3col{
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 1024px){
+  .form-grid--3col{
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* Field block */
+.field{
+  min-width: 0;
+}
+
+/* Span 2 columns on tablet/desktop */
+.field--span2{
+  grid-column: span 1;
+}
+@media (min-width: 760px){
+  .field--span2{
+    grid-column: span 2;
+  }
+}
+@media (min-width: 1024px){
+  .field--span2{
+    grid-column: span 2; /* still 2 out of 3, looks nice */
+  }
+}
+
+/* Labels */
+.form-grid label{
+  display:block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  margin: 0 0 6px;
+  letter-spacing: .02em;
+}
+
+/* Inputs */
 .form-grid input,
-.form-grid select {
+.form-grid select{
   width: 100%;
-  padding: 6px 8px;
-  background: #020617;
-  color: #ffffff;
-  border: 1px solid #1e293b;
-  border-radius: 4px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
 .form-grid input:focus,
-.form-grid select:focus {
-  outline: none;
-  border-color: #2563eb;
+.form-grid select:focus{
+  border-color: rgba(110,168,255,.55);
+  box-shadow: 0 0 0 4px rgba(110,168,255,.12);
+  background: rgba(0,0,0,.26);
 }
 
-.calc-box {
+/* Footer buttons */
+.footer{
   display: flex;
-  gap: 40px;
-  margin-top: 20px;
-  padding-top: 12px;
-  border-top: 1px solid #1e293b;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
 }
 
-.calc-box span {
-  color: #94a3b8;
-  font-size: 12px;
+/* In create mode only one button -> stretch */
+.footer .btnPrimary{
+  flex: 1;
 }
 
-.calc-box strong {
-  display: block;
-  font-size: 16px;
-  color: #ffffff;
+/* In modal -> 2 buttons side by side */
+.footer--modal .btnPrimary,
+.footer--modal .btnSecondary{
+  flex: 1;
 }
 
-.actions {
-  margin-top: 20px;
-  text-align: right;
-}
-
-.actions button {
-  padding: 8px 16px;
-  background: #2563eb;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
+/* Buttons */
+.btnPrimary,
+.btnSecondary{
+  height: 40px;
+  border-radius: 12px;
   cursor: pointer;
+  font-weight: 900;
+  transition: transform 60ms ease, background 120ms ease, filter 120ms ease;
 }
 
-.actions button:hover {
-  background: #1d4ed8;
+.btnPrimary{
+  border: 1px solid rgba(110,168,255,.35);
+  background: linear-gradient(135deg, rgba(110,168,255,.95), rgba(90,140,255,.72));
+  color: #071228;
 }
+.btnPrimary:hover{ filter: brightness(1.05); }
+.btnPrimary:active{ transform: translateY(1px); }
+.btnPrimary:disabled{ opacity: .45; cursor: not-allowed; }
 
-.actions button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.btnSecondary{
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
 }
-
-/* DATE INPUT – FIX ICON POSITION */
-.form-grid input[type="date"] {
-  position: relative;
-  padding-right: 36px; /* space for calendar icon */
-  color-scheme: dark;
-}
-
-/* Chrome / Edge calendar icon */
-.form-grid input[type="date"]::-webkit-calendar-picker-indicator {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  filter: invert(1);
-  opacity: 0.8;
-  cursor: pointer;
-}
-
-/* Hover effect (subtle, professional) */
-.form-grid input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
-}
+.btnSecondary:hover{ background: rgba(255,255,255,.10); }
+.btnSecondary:active{ transform: translateY(1px); }
+.btnSecondary:disabled{ opacity: .45; cursor: not-allowed; }

@@ -1,42 +1,36 @@
-import { useNavigate } from "react-router-dom";
-import DitorForm from "../components/DitorForm";
+import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import DitorTable from "../components/DitorTable";
+import DitorForm from "../components/DitorForm";
+import Modal from "../components/Modal";
+import "./Dashboard.css";
 
 export default function Dashboard() {
-  const navigate = useNavigate();
+  const { setOpenAddModal } = useOutletContext();
+  const [showAdd, setShowAdd] = useState(false);
+
+  useEffect(() => {
+    setOpenAddModal(() => () => setShowAdd(true));
+    return () => setOpenAddModal(null);
+  }, [setOpenAddModal]);
 
   return (
-    <div style={{ padding: "24px" }}>
-      <h1>Mirësevjen në PROMAN</h1>
-
-      {/* ACTION BAR */}
-      <div style={{ marginBottom: 24, display: "flex", gap: 12 }}>
-        <button
-          onClick={() => navigate("/ditor-report")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: 6,
-            border: "none",
-            background: "#2563eb",
-            color: "#fff",
-            cursor: "pointer",
-            fontWeight: 500
-          }}
-        >
-          📊 Hap Raportin e Inventarit
-        </button>
+    <div className="main main--single">
+      <div className="right right--full">
+        <div className="rightTitle">Të dhëna të regjistruara</div>
+        <div className="rightBody">
+          <DitorTable />
+        </div>
       </div>
 
-      {/* DATA ENTRY */}
-      <section style={{ marginBottom: 40 }}>
-        <DitorForm />
-      </section>
-
-      {/* LIVE DATA */}
-      <section>
-        <h2>📋 Të dhëna të regjistruara</h2>
-        <DitorTable />
-      </section>
+      {showAdd && (
+        <Modal title="Shto të dhënë" onClose={() => setShowAdd(false)}>
+          <DitorForm
+            mode="create"
+            onSaved={() => setShowAdd(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 }
