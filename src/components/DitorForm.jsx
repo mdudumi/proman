@@ -78,14 +78,20 @@ const DitorForm = forwardRef(function DitorForm(
     });
   }
 
+  // 👉 values
+  const sasia = Number(form.sasia || 0);
   const shuma_leke = Number(form.shuma_input || 0);
+
+  // 👉 calculated field
+  const cmimi_njesi =
+    sasia > 0 ? (shuma_leke / sasia).toFixed(2) : "";
 
   const isValid =
     form.kategoria_id &&
     form.produkti_id &&
     form.monedha_id &&
     form.bleresi_shitesi_id &&
-    Number(form.sasia) > 0 &&
+    sasia > 0 &&
     shuma_leke > 0;
 
   async function save() {
@@ -100,7 +106,7 @@ const DitorForm = forwardRef(function DitorForm(
       monedha_id: form.monedha_id,
       bleresi_shitesi_id: form.bleresi_shitesi_id,
       veprimi: form.veprimi,
-      sasia: Number(form.sasia),
+      sasia,
       shuma_leke
     };
 
@@ -217,6 +223,19 @@ const DitorForm = forwardRef(function DitorForm(
           <div className="field">
             <label>Shuma (ALL)</label>
             <input type="number" value={form.shuma_input} onChange={e => setField("shuma_input", e.target.value)} step="any" />
+          </div>
+
+          {/* 👉 NEW FIELD */}
+          <div className="field">
+            <label>
+              Çmimi për njësi (ALL)
+            </label>
+            <input
+              type="number"
+              value={cmimi_njesi}
+              readOnly
+              className="input-readonly"
+            />
           </div>
         </div>
 
