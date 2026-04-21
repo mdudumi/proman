@@ -181,16 +181,10 @@ export default function KategoriaAdmin() {
 
   return (
     <div>
-      <div style={topBar}>
-        <div>
-          <h2 style={{ margin: 0 }}>Menxhimi i Kategorisë</h2>
-        </div>
-      </div>
-
       <div style={grid}>
         <div style={panel}>
           <div style={panelHeader}>
-            <h3 style={panelTitle}>Categories</h3>
+            <h3 style={panelTitle}>Kategoritë</h3>
           </div>
 
           <div style={formRow}>
@@ -258,7 +252,7 @@ export default function KategoriaAdmin() {
         <div style={panel}>
           <div style={panelHeader}>
             <h3 style={panelTitle}>
-              {selected ? `Items — ${selected.name}` : "Items"}
+              {selected ? `Elementi — ${selected.name}` : "Items"}
             </h3>
           </div>
 
