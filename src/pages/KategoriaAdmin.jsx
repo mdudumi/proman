@@ -15,79 +15,179 @@ export default function KategoriaAdmin() {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editValue, setEditValue] = useState("");
 
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     load();
   }, []);
 
-  async function load() {
-    const { data } = await supabase
+  async function load(selectedId = selected?.id) {
+    setLoading(true);
+
+    const { data, error } = await supabase
       .from("kategoria")
-      .select("id, name, kategoria_list(id, name)")
+      .select("id, name, kategoria_list(id, name, kategoria_id)")
       .order("name");
 
-    setKategoria(data || []);
-    if (!selected && data?.length) setSelected(data[0]);
-  }
+    if (error) {
+      console.error(error);
+      setLoading(false);
+      return;
+    }
 
-  /* ---------- ADD ---------- */
+    const rows = data || [];
+    setKategoria(rows);
+
+    if (!rows.length) {
+      setSelected(null);
+      setLoading(false);
+      return;
+    }
+
+    if (selectedId) {
+      const stillSelected = rows.find((x) => x.id === selectedId);
+      setSelected(stillSelected || rows[0]);
+    } else {
+      setSelected(rows[0]);
+    }
+
+    setLoading(false);
+  }
 
   async function addCategory() {
     if (!newCat.trim()) return;
-    await supabase.from("kategoria").insert({ name: newCat.trim() });
+
+    const { error } = await supabase.from("kategoria").insert({
+      name: newCat.trim(),
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setNewCat("");
     load();
   }
 
   async function addItem() {
     if (!newItem.trim() || !selected) return;
-    await supabase.from("kategoria_list").insert({
+
+    const { error } = await supabase.from("kategoria_list").insert({
       name: newItem.trim(),
       kategoria_id: selected.id,
     });
-    setNewItem("");
-    load();
-  }
 
-  /* ---------- EDIT ---------- */
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setNewItem("");
+    load(selected.id);
+  }
 
   async function saveCategory(id) {
     if (!editValue.trim()) return;
-    await supabase.from("kategoria").update({ name: editValue }).eq("id", id);
+
+    const { error } = await supabase
+      .from("kategoria")
+      .update({ name: editValue.trim() })
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setEditingCatId(null);
     setEditValue("");
-    load();
+    load(id);
   }
 
   async function saveItem(id) {
     if (!editValue.trim()) return;
-    await supabase
+
+    const { error } = await supabase
       .from("kategoria_list")
-      .update({ name: editValue })
+      .update({ name: editValue.trim() })
       .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setEditingItemId(null);
     setEditValue("");
+    load(selected?.id);
+  }
+
+  async function deleteCategory(cat) {
+    if (!cat) return;
+
+    const confirmed = window.confirm(
+      `A je i sigurt që do fshish kategorinë "${cat.name}"?`
+    );
+    if (!confirmed) return;
+
+    const { error: itemsError } = await supabase
+      .from("kategoria_list")
+      .delete()
+      .eq("kategoria_id", cat.id);
+
+    if (itemsError) {
+      alert(itemsError.message);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("kategoria")
+      .delete()
+      .eq("id", cat.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (selected?.id === cat.id) {
+      setSelected(null);
+    }
+
     load();
+  }
+
+  async function deleteItem(item) {
+    if (!item) return;
+
+    const confirmed = window.confirm(
+      `A je i sigurt që do fshish "${item.name}"?`
+    );
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("kategoria_list")
+      .delete()
+      .eq("id", item.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    load(selected?.id);
   }
 
   return (
     <div>
-      {/* ===== TOP BAR ===== */}
       <div style={topBar}>
         <div>
-          <h2 style={{ margin: 0 }}>Kategoria Management</h2>
-          <div style={subtitle}>
-            Admin / Master Data / Kategoria
-          </div>
+          <h2 style={{ margin: 0 }}>Menxhimi i Kategorisë</h2>
         </div>
-
-        <button style={secondaryBtn} onClick={() => navigate("/dashboard")}>
-          ← Dashboard
-        </button>
       </div>
 
-      {/* ===== CONTENT ===== */}
       <div style={grid}>
-        {/* LEFT — CATEGORIES */}
         <div style={panel}>
           <div style={panelHeader}>
             <h3 style={panelTitle}>Categories</h3>
@@ -97,11 +197,12 @@ export default function KategoriaAdmin() {
             <input
               value={newCat}
               onChange={(e) => setNewCat(e.target.value)}
-              placeholder="Add new category"
+              placeholder="Shto Kategori"
               style={input}
+              onKeyDown={(e) => e.key === "Enter" && addCategory()}
             />
             <button style={primaryBtn} onClick={addCategory}>
-              Add
+              Shto
             </button>
           </div>
 
@@ -114,7 +215,6 @@ export default function KategoriaAdmin() {
                   ...(selected?.id === k.id ? activeRow : {}),
                 }}
                 onClick={() => setSelected(k)}
-                title="Double-click to edit"
                 onDoubleClick={() => {
                   setEditingCatId(k.id);
                   setEditValue(k.name);
@@ -126,26 +226,40 @@ export default function KategoriaAdmin() {
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={() => saveCategory(k.id)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && saveCategory(k.id)
-                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveCategory(k.id);
+                      if (e.key === "Escape") {
+                        setEditingCatId(null);
+                        setEditValue("");
+                      }
+                    }}
                     style={editInput}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  k.name
+                  <div style={rowContent}>
+                    <span>{k.name}</span>
+                    <button
+                      style={dangerBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCategory(k);
+                      }}
+                    >
+                      Fshi
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* RIGHT — ITEMS */}
         <div style={panel}>
           <div style={panelHeader}>
             <h3 style={panelTitle}>
               {selected ? `Items — ${selected.name}` : "Items"}
             </h3>
-            <div style={hint}>Double-click to edit</div>
           </div>
 
           {selected && (
@@ -153,11 +267,12 @@ export default function KategoriaAdmin() {
               <input
                 value={newItem}
                 onChange={(e) => setNewItem(e.target.value)}
-                placeholder="Add new item"
+                placeholder="Shto element"
                 style={input}
+                onKeyDown={(e) => e.key === "Enter" && addItem()}
               />
               <button style={primaryBtn} onClick={addItem}>
-                Add
+                Shto
               </button>
             </div>
           )}
@@ -165,6 +280,8 @@ export default function KategoriaAdmin() {
           {!selected && (
             <div style={empty}>Select a category to manage items</div>
           )}
+
+          {loading && <div style={empty}>Duke ngarkuar...</div>}
 
           {selected?.kategoria_list?.map((i) => (
             <div
@@ -181,11 +298,25 @@ export default function KategoriaAdmin() {
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={() => saveItem(i.id)}
-                  onKeyDown={(e) => e.key === "Enter" && saveItem(i.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveItem(i.id);
+                    if (e.key === "Escape") {
+                      setEditingItemId(null);
+                      setEditValue("");
+                    }
+                  }}
                   style={editInput}
                 />
               ) : (
-                i.name
+                <div style={rowContent}>
+                  <span>{i.name}</span>
+                  <button
+                    style={dangerBtn}
+                    onClick={() => deleteItem(i)}
+                  >
+                    Fshi
+                  </button>
+                </div>
               )}
             </div>
           ))}
@@ -273,6 +404,13 @@ const row = {
   transition: "background 0.15s",
 };
 
+const rowContent = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+};
+
 const activeRow = {
   background: "rgba(79,124,255,0.18)",
 };
@@ -301,4 +439,15 @@ const secondaryBtn = {
   color: "var(--text)",
   cursor: "pointer",
   fontWeight: 600,
+};
+
+const dangerBtn = {
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "#7f1d1d",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 600,
+  fontSize: 12,
 };
