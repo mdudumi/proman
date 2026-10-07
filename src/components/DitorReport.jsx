@@ -368,24 +368,31 @@ export default function DitorReport() {
     if (!rows.length) return;
 
     const doc = new jsPDF("l", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const generatedAt = new Date().toLocaleString("sq-AL");
+    const filtersText = doc.splitTextToSize(getFilterSummaryText(), pageWidth - 28);
 
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 297, 24, "F");
+    function drawHeader() {
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 22, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("PROMAN", 12, 9);
+      doc.setFontSize(11);
+      doc.text("RAPORTI I GJENDJES DHE BILANCIT", 12, 16);
+      doc.setTextColor(51, 65, 85);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`Periudha: ${formatDate(reportPeriod.from)} – ${formatDate(reportPeriod.to)}`, 12, 29);
+      doc.text(`Rreshta: ${rows.length}`, 150, 29);
+      doc.text(`Gjeneruar: ${generatedAt}`, 205, 29);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.4);
+      doc.text(filtersText, 12, 35);
+    }
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text(buildExportTitle(), 14, 15);
-
-    doc.setTextColor(40, 40, 40);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Periudha: ${reportPeriod.from} - ${reportPeriod.to}`, 14, 31);
-    doc.text(`Rreshta: ${rows.length}`, 110, 31);
-    doc.text(`Gjeneruar: ${new Date().toLocaleString()}`, 165, 31);
-
-    doc.setFontSize(8.2);
-    doc.text(getFilterSummaryText(), 14, 37);
+    drawHeader();
 
     const head = [visibleColumns.map(c => c.label)];
     const body = [];
@@ -466,16 +473,16 @@ export default function DitorReport() {
     ];
 
     autoTable(doc, {
-      startY: 43,
+      startY: 35 + filtersText.length * 3.4 + 4,
       head,
       body,
       foot,
       showFoot: "lastPage",
       theme: "grid",
-      margin: { left: 5, right: 5 },
+      margin: { top: 28, left: 10, right: 10, bottom: 14 },
       styles: {
-        fontSize: 6.2,
-        cellPadding: 1.1,
+        fontSize: 6.6,
+        cellPadding: 1.35,
         lineColor: [210, 214, 220],
         lineWidth: 0.1,
         overflow: "linebreak"
@@ -490,9 +497,31 @@ export default function DitorReport() {
         textColor: [30, 41, 59]
       },
       columnStyles: visibleColumns.reduce((acc, col, idx) => {
-        acc[idx] = { halign: col.type === "number" ? "right" : "left", cellWidth: col.key === "data" ? 20 : 30 };
+        const availableWidth = 277;
+        const dateWidth = Math.min(30, availableWidth / Math.max(visibleColumns.length, 1));
+        const otherWidth = (availableWidth - dateWidth) / Math.max(visibleColumns.length - 1, 1);
+        acc[idx] = {
+          halign: col.type === "number" ? "right" : "left",
+          cellWidth: col.key === "data" ? dateWidth : otherWidth
+        };
         return acc;
-      }, {})
+      }, {}),
+      didDrawPage: data => {
+        if (data.pageNumber > 1) {
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, 0, pageWidth, 16, "F");
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.text("PROMAN — RAPORTI I GJENDJES DHE BILANCIT", 10, 10);
+        }
+        const pageNumber = doc.internal.getNumberOfPages();
+        doc.setTextColor(100, 116, 139);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.text(`PROMAN • Faqja ${pageNumber}`, 10, 204);
+        doc.text("Raport i gjeneruar nga sistemi", pageWidth - 10, 204, { align: "right" });
+      }
     });
 
     doc.save(buildExportFileName("pdf"));
