@@ -110,6 +110,16 @@ body {
   min-width: 0;
 }
 
+.dr-tab-active {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #ffffff !important;
+}
+
+.dr-hidden {
+  display: none !important;
+}
+
 /* CARD */
 .dr-card {
   background: linear-gradient(180deg, var(--dr-card) 0%, var(--dr-card-soft) 100%);

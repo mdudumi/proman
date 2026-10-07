@@ -62,6 +62,7 @@ export default function DitorReport() {
 
   const [selectedColumns, setSelectedColumns] = useState(DEFAULT_COLUMNS);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [reportSection, setReportSection] = useState("balance");
 
   const [kategori, setKategori] = useState([]);
   const [produkte, setProdukte] = useState([]);
@@ -700,24 +701,29 @@ export default function DitorReport() {
         <div className="dr-hero ultra">
           <div>
             <div className="dr-overline">Finance / Accounting / Inventory</div>
-            <h1>Raporti Ultra Premium i Bilancit</h1>
+            <h1>{reportSection === "balance" ? "Raporti i Bilancit" : "Analizat e faturave dhe gjendjes"}</h1>
             <p>
-              Tabelë e thjeshtë me kolona normale, grupim sipas filtrit të zgjedhur,
-              subtotal për grup dhe total final.
+              {reportSection === "balance"
+                ? "Gjendja e hapjes, hyrjet, daljet dhe gjendja përfundimtare për periudhën e zgjedhur."
+                : "Faturat ditore, gjendja sipas artikullit dhe llogaritë me blerësit/shitësit."}
             </p>
           </div>
 
           <div className="dr-hero-actions">
-            <button className="dr-btn dr-btn-light" onClick={() => setShowColumnPicker(v => !v)}>
-              Zgjidh Kolonat
+            <button className={`dr-btn dr-btn-light ${reportSection === "balance" ? "dr-tab-active" : ""}`} onClick={() => setReportSection("balance")}>
+              Bilanci
             </button>
-            <button className="dr-btn dr-btn-light" onClick={resetFilters}>
-              Rifresko
+            <button className={`dr-btn dr-btn-light ${reportSection === "analysis" ? "dr-tab-active" : ""}`} onClick={() => setReportSection("analysis")}>
+              Analizat
             </button>
+            {reportSection === "balance" && <>
+              <button className="dr-btn dr-btn-light" onClick={() => setShowColumnPicker(v => !v)}>Zgjidh Kolonat</button>
+              <button className="dr-btn dr-btn-light" onClick={resetFilters}>Rifresko</button>
+            </>}
           </div>
         </div>
 
-        <div className="dr-card">
+        <div className={`dr-card ${reportSection !== "balance" ? "dr-hidden" : ""}`}>
           <div className="dr-section-title">Filtra</div>
 
           <div className="dr-filters">
@@ -837,9 +843,11 @@ export default function DitorReport() {
           </div>
         </div>
 
-        <OperationalReports />
+        <div className={reportSection !== "analysis" ? "dr-hidden" : ""}>
+          <OperationalReports />
+        </div>
 
-        {showColumnPicker && (
+        {reportSection === "balance" && showColumnPicker && (
           <div className="dr-card">
             <div className="dr-column-header">
               <div className="dr-section-title">Konfigurimi i kolonave</div>
@@ -868,7 +876,7 @@ export default function DitorReport() {
           </div>
         )}
 
-        <div className="dr-summary-grid ultra">
+        <div className={`dr-summary-grid ultra ${reportSection !== "balance" ? "dr-hidden" : ""}`}>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Sasia (kg) – Në Hapje</div>
             <div className="dr-summary-value">{formatNumber(topSummary.openingQty)}</div>
@@ -909,7 +917,7 @@ export default function DitorReport() {
           </div>
         </div>
 
-        <div className="dr-card">
+        <div className={`dr-card ${reportSection !== "balance" ? "dr-hidden" : ""}`}>
           <div className="dr-toolbar">
             <div className="dr-toolbar-left">
               <div className="dr-section-title">Rezultatet</div>
