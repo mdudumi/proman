@@ -7,6 +7,7 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import "./DitorReport.css";
+import OperationalReports from "./OperationalReports";
 
 const VEPRIM_OPTIONS = [
   { id: "Hyrje/Blerje", name: "Hyrje/Blerje" },
@@ -35,6 +36,12 @@ const GROUP_BY_OPTIONS = [
   { key: "bleresi_shitesi", label: "Grupo sipas Blerësi/Shitësi" },
   { key: "veprimi", label: "Grupo sipas Veprimit" }
 ];
+
+const formatDate = value => {
+  if (!value) return "";
+  const [year, month, day] = String(value).split("-");
+  return year && month && day ? `${day}.${month}.${year}` : value;
+};
 
 export default function DitorReport() {
   const navigate = useNavigate();
@@ -402,7 +409,7 @@ export default function DitorReport() {
       group.rows.forEach(r => {
         body.push(
           visibleColumns.map(col =>
-            col.key === "data" ? (r.data ?? "") : formatNumber(r[col.key] ?? 0)
+            col.key === "data" ? formatDate(r.data) : formatNumber(r[col.key] ?? 0)
           )
         );
       });
@@ -465,9 +472,10 @@ export default function DitorReport() {
       foot,
       showFoot: "lastPage",
       theme: "grid",
+      margin: { left: 5, right: 5 },
       styles: {
-        fontSize: 8,
-        cellPadding: 2.4,
+        fontSize: 6.2,
+        cellPadding: 1.1,
         lineColor: [210, 214, 220],
         lineWidth: 0.1,
         overflow: "linebreak"
@@ -482,9 +490,7 @@ export default function DitorReport() {
         textColor: [30, 41, 59]
       },
       columnStyles: visibleColumns.reduce((acc, col, idx) => {
-        acc[idx] = {
-          halign: col.type === "number" ? "right" : "left"
-        };
+        acc[idx] = { halign: col.type === "number" ? "right" : "left", cellWidth: col.key === "data" ? 20 : 30 };
         return acc;
       }, {})
     });
@@ -802,6 +808,8 @@ export default function DitorReport() {
           </div>
         </div>
 
+        <OperationalReports />
+
         {showColumnPicker && (
           <div className="dr-card">
             <div className="dr-column-header">
@@ -833,7 +841,7 @@ export default function DitorReport() {
 
         <div className="dr-summary-grid ultra">
           <div className="dr-summary-card">
-            <div className="dr-summary-label">Sasia në Hapje</div>
+            <div className="dr-summary-label">Sasia (kg) – Në Hapje</div>
             <div className="dr-summary-value">{formatNumber(topSummary.openingQty)}</div>
           </div>
           <div className="dr-summary-card">
@@ -848,10 +856,10 @@ export default function DitorReport() {
             <div className={`dr-summary-value ${isNegative(topSummary.closingQty) ? "neg" : ""}`}>
               {formatNumber(topSummary.closingQty)}
             </div>
-            <div className="dr-summary-label bottom">Sasia në Mbyllje</div>
+            <div className="dr-summary-label bottom">Sasia (kg) – Në Gjendje</div>
           </div>
           <div className="dr-summary-card">
-            <div className="dr-summary-label">Vlera në Hapje</div>
+            <div className="dr-summary-label">Vlera (lekë) – Në Hapje</div>
             <div className={`dr-summary-value ${isNegative(topSummary.openingValue) ? "neg" : ""}`}>
               {formatNumber(topSummary.openingValue)}
             </div>
@@ -868,7 +876,7 @@ export default function DitorReport() {
             <div className={`dr-summary-value ${isNegative(topSummary.closingValue) ? "neg" : ""}`}>
               {formatNumber(topSummary.closingValue)}
             </div>
-            <div className="dr-summary-label bottom">Vlera në Mbyllje</div>
+            <div className="dr-summary-label bottom">Vlera (lekë) – Në Gjendje</div>
           </div>
         </div>
 

@@ -40,8 +40,10 @@ const DitorForm = forwardRef(function DitorForm(
       .then(({ data, error }) => {
         if (error) console.error(error);
         setMonedha(data || []);
+        const defaultId = (data || []).find(item => item.name.trim().toLocaleLowerCase() === "leke kesh")?.id;
+        if (mode === "create" && defaultId) setForm(prev => ({ ...prev, monedha_id: prev.monedha_id || defaultId }));
       });
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     supabase.from("kategoria_list").select("id,name")
@@ -51,28 +53,29 @@ const DitorForm = forwardRef(function DitorForm(
       .then(({ data, error }) => {
         if (error) console.error(error);
         setBleresit(data || []);
+        const defaultId = (data || []).find(item => item.name.trim().toLocaleLowerCase() === "blerje nga fshataret")?.id;
+        if (mode === "create" && defaultId) setForm(prev => ({ ...prev, bleresi_shitesi_id: prev.bleresi_shitesi_id || defaultId }));
       });
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
-    if (!form.kategoria_id) {
-      setProdukte([]);
-      setForm(prev => ({ ...prev, produkti_id: "" }));
-      return;
-    }
-
-    supabase.from("kategoria_list").select("id,name")
-      .eq("kategoria_id", form.kategoria_id)
+    // Produkti zgjidhet i pari; kategoria e tij vendoset automatikisht.
+    supabase.from("kategoria_list").select("id,name,kategoria_id")
       .eq("is_active", true)
-      .order("sort_order")
+      .not("kategoria_id", "in", `(${CATEGORY_IDS.MONEDHA},${CATEGORY_IDS.BLERESI_SHITESI},${CATEGORY_IDS.TJETER})`)
+      .order("name")
       .then(({ data, error }) => {
         if (error) console.error(error);
         setProdukte(data || []);
       });
-  }, [form.kategoria_id]);
+  }, []);
 
   function setField(name, value) {
     setForm(prev => {
+      if (name === "produkti_id") {
+        const produkti = produkte.find(item => String(item.id) === String(value));
+        return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id || prev.kategoria_id };
+      }
       if (name === "kategoria_id") return { ...prev, kategoria_id: value, produkti_id: "" };
       return { ...prev, [name]: value };
     });
@@ -124,10 +127,7 @@ const DitorForm = forwardRef(function DitorForm(
     if (mode !== "edit") {
       setForm(prev => ({
         ...prev,
-        kategoria_id: "",
         produkti_id: "",
-        monedha_id: "",
-        bleresi_shitesi_id: "",
         sasia: "",
         shuma_input: ""
       }));
@@ -164,26 +164,23 @@ const DitorForm = forwardRef(function DitorForm(
           </div>
 
           <div className="field">
-            <label>Kategoria</label>
-            <select value={form.kategoria_id} onChange={e => setField("kategoria_id", e.target.value)}>
-              <option value="">Select</option>
-              {kategorite.map(k => (
-                <option key={k.id} value={k.id}>{k.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
             <label>Produkti</label>
             <select
               value={form.produkti_id}
-              disabled={!form.kategoria_id || !produkte.length}
               onChange={e => setField("produkti_id", e.target.value)}
             >
               <option value="">Select</option>
               {produkte.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label>Kategoria</label>
+            <select value={form.kategoria_id} onChange={e => setField("kategoria_id", e.target.value)}>
+              <option value="">Select</option>
+              {kategorite.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
             </select>
           </div>
 

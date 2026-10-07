@@ -91,7 +91,8 @@ export default function DitorTable() {
       `,
         { count: "exact" }
       )
-      .order("created_at", { ascending: false });
+      .order("data", { ascending: true })
+      .order("created_at", { ascending: true });
 
     if (filters.fromDate) q = q.gte("data", filters.fromDate);
     if (filters.toDate) q = q.lte("data", filters.toDate);
@@ -338,7 +339,7 @@ export default function DitorTable() {
 
             {rows.map(r => (
               <tr key={r.id}>
-                <td title={r.data}>{r.data}</td>
+                <td title={r.data}>{formatDate(r.data)}</td>
                 <td title={r.kategoria?.name || ""}>{r.kategoria?.name}</td>
                 <td title={r.produkti?.name || ""}>{r.produkti?.name}</td>
                 <td title={r.monedha?.name || ""}>{r.monedha?.name}</td>
@@ -386,4 +387,10 @@ export default function DitorTable() {
       )}
     </div>
   );
+}
+
+function formatDate(value) {
+  if (!value) return "";
+  const [year, month, day] = String(value).split("-");
+  return year && month && day ? `${day}.${month}.${year}` : value;
 }

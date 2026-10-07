@@ -382,7 +382,7 @@ body {
 .dr-table th,
 .dr-table td {
   display: table-cell;
-  padding: 10px 12px;
+  padding: 6px 10px;
   border: 1px solid #e2e8f0;
   vertical-align: middle;
   white-space: nowrap;
