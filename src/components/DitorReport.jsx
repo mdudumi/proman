@@ -952,7 +952,7 @@ export default function DitorReport() {
                 {visibleColumns.map(col => (
                   <col
                     key={col.key}
-                    style={{ width: col.key === "data" ? "130px" : "160px" }}
+                    className={col.key === "data" ? "data-col" : "num-col"}
                   />
                 ))}
               </colgroup>
