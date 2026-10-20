@@ -8,6 +8,7 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import "./DitorReport.css";
 import OperationalReports from "./OperationalReports";
+import SearchSelect from "./SearchSelect";
 
 const VEPRIM_OPTIONS = [
   { id: "Hyrje/Blerje", name: "Hyrje/Blerje" },
@@ -751,69 +752,49 @@ export default function DitorReport() {
 
             <div className="dr-field">
               <label>Kategoria</label>
-              <select
+              <SearchSelect
                 value={filters.kategoria_id}
-                onChange={e =>
+                onChange={value =>
                   setFilters(prev => ({
                     ...prev,
-                    kategoria_id: e.target.value,
+                    kategoria_id: value,
                     produkti_id: ""
                   }))
                 }
-              >
-                <option value="">All</option>
-                {kategori.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+                options={kategori}
+                placeholder="All"
+              />
             </div>
 
             <div className="dr-field">
               <label>Produkti</label>
-              <select
+              <SearchSelect
                 value={filters.produkti_id}
                 disabled={!filters.kategoria_id || !filteredProdukte.length}
-                onChange={e => setFilters(prev => ({ ...prev, produkti_id: e.target.value }))}
-              >
-                <option value="">All</option>
-                {filteredProdukte.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+                onChange={value => setFilters(prev => ({ ...prev, produkti_id: value }))}
+                options={filteredProdukte}
+                placeholder="All"
+              />
             </div>
 
             <div className="dr-field">
               <label>Monedha</label>
-              <select
+              <SearchSelect
                 value={filters.monedha_id}
-                onChange={e => setFilters({ ...filters, monedha_id: e.target.value })}
-              >
-                <option value="">All</option>
-                {monedhat.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+                onChange={value => setFilters(prev => ({ ...prev, monedha_id: value }))}
+                options={monedhat}
+                placeholder="All"
+              />
             </div>
 
             <div className="dr-field">
               <label>Blerësi/Shitësi</label>
-              <select
+              <SearchSelect
                 value={filters.bleresi_id}
-                onChange={e => setFilters({ ...filters, bleresi_id: e.target.value })}
-              >
-                <option value="">All</option>
-                {bleresit.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+                onChange={value => setFilters(prev => ({ ...prev, bleresi_id: value }))}
+                options={bleresit}
+                placeholder="All"
+              />
             </div>
 
             <div className="dr-field">

@@ -1,6 +1,7 @@
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS } from "../lib/categoryIds";
+import SearchSelect from "./SearchSelect";
 import "./DitorForm.css";
 
 // Categories that hold currencies, buyers/sellers and other non-product items.
@@ -173,44 +174,40 @@ const DitorForm = forwardRef(function DitorForm(
 
           <div className="field">
             <label>Kategoria</label>
-            <select value={form.kategoria_id} onChange={e => setField("kategoria_id", e.target.value)}>
-              <option value="">Select</option>
-              {kategorite.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-            </select>
+            <SearchSelect
+              value={form.kategoria_id}
+              onChange={value => setField("kategoria_id", value)}
+              options={kategorite}
+            />
           </div>
 
           <div className="field">
             <label>Produkti</label>
-            <select
+            <SearchSelect
               value={form.produkti_id}
               disabled={!form.kategoria_id}
-              onChange={e => setField("produkti_id", e.target.value)}
-            >
-              <option value="">{form.kategoria_id ? "Select" : "Zgjidh kategorinë"}</option>
-              {kategoriaProdukte.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+              onChange={value => setField("produkti_id", value)}
+              options={kategoriaProdukte}
+              placeholder={form.kategoria_id ? "Select" : "Zgjidh kategorinë"}
+            />
           </div>
 
           <div className="field">
             <label>Monedha</label>
-            <select value={form.monedha_id} onChange={e => setField("monedha_id", e.target.value)}>
-              <option value="">Select</option>
-              {monedha.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+            <SearchSelect
+              value={form.monedha_id}
+              onChange={value => setField("monedha_id", value)}
+              options={monedha}
+            />
           </div>
 
           <div className="field field--span2">
             <label>Blerësi / Shitësi</label>
-            <select value={form.bleresi_shitesi_id} onChange={e => setField("bleresi_shitesi_id", e.target.value)}>
-              <option value="">Select</option>
-              {bleresit.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
+            <SearchSelect
+              value={form.bleresi_shitesi_id}
+              onChange={value => setField("bleresi_shitesi_id", value)}
+              options={bleresit}
+            />
           </div>
 
           <div className="field">

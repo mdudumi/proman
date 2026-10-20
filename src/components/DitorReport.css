@@ -222,11 +222,14 @@ body {
 }
 
 /* Dropdowns: the shared look from styles.css, in this page's light colours */
-.dr-page select {
+.dr-page select,
+.dr-page .ss-trigger {
   --select-bg: #fff;
   --select-text: #111827;
   --select-border: var(--dr-border);
+  --select-muted: #64748b;
   --select-menu-bg: #fff;
+  --select-option-active: #e8f0fe;
   --select-focus: #60a5fa;
   --select-focus-ring: rgba(37, 99, 235, 0.12);
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
