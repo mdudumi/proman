@@ -17,12 +17,10 @@ export default function Login() {
     setError("");
     setLoading(true);
 
-const { data, error } = await supabase.auth.signInWithPassword({
-  email,
-  password,
-});
-
-console.log("AUTH RESULT:", data, error);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       setError(error.message);

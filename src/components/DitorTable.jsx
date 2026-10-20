@@ -3,12 +3,14 @@ import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS } from "../lib/categoryIds";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
+import SearchSelect from "./SearchSelect";
 import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
 
-export default function DitorTable() {
+export default function DitorTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
   const [editRow, setEditRow] = useState(null);
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
@@ -106,16 +108,19 @@ export default function DitorTable() {
 
     if (error) {
       console.error(error);
+      setError(error.message);
       return;
     }
 
+    setError("");
     setRows(data || []);
     setTotalRows(count || 0);
   }, [filters, page]);
 
+  // refreshKey changes after an entry is added, so the new entry shows up.
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   async function remove(id) {
     if (!window.confirm("Delete this record?")) return;
@@ -188,63 +193,43 @@ export default function DitorTable() {
 
           <div>
             <label>Kategoria</label>
-            <select
+            <SearchSelect
               value={filters.kategoria_id}
-              onChange={e => setF("kategoria_id", e.target.value)}
-            >
-              <option value="">All</option>
-              {kategorite.map(k => (
-                <option key={k.id} value={k.id}>
-                  {k.name}
-                </option>
-              ))}
-            </select>
+              onChange={value => setF("kategoria_id", value)}
+              options={kategorite}
+              placeholder="All"
+            />
           </div>
 
           <div>
             <label>Produkti</label>
-            <select
+            <SearchSelect
               value={filters.produkti_id}
               disabled={!filters.kategoria_id || !produkte.length}
-              onChange={e => setF("produkti_id", e.target.value)}
-            >
-              <option value="">All</option>
-              {produkte.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              onChange={value => setF("produkti_id", value)}
+              options={produkte}
+              placeholder="All"
+            />
           </div>
 
           <div>
             <label>Monedha</label>
-            <select
+            <SearchSelect
               value={filters.monedha_id}
-              onChange={e => setF("monedha_id", e.target.value)}
-            >
-              <option value="">All</option>
-              {monedha.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={value => setF("monedha_id", value)}
+              options={monedha}
+              placeholder="All"
+            />
           </div>
 
           <div>
             <label>Bleresi/Shitesi</label>
-            <select
+            <SearchSelect
               value={filters.bleresi_id}
-              onChange={e => setF("bleresi_id", e.target.value)}
-            >
-              <option value="">All</option>
-              {bleresit.map(b => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+              onChange={value => setF("bleresi_id", value)}
+              options={bleresit}
+              placeholder="All"
+            />
           </div>
 
           <div>
@@ -329,7 +314,18 @@ export default function DitorTable() {
           </thead>
 
           <tbody>
-            {rows.length === 0 && (
+            {error && (
+              <tr>
+                <td colSpan="10" className="dtEmpty dtError">
+                  Të dhënat nuk u ngarkuan: {error}
+                  <button className="dtRetryBtn" onClick={load}>
+                    Provo përsëri
+                  </button>
+                </td>
+              </tr>
+            )}
+
+            {!error && rows.length === 0 && (
               <tr>
                 <td colSpan="10" className="dtEmpty">
                   No records found
@@ -337,7 +333,7 @@ export default function DitorTable() {
               </tr>
             )}
 
-            {rows.map(r => (
+            {!error && rows.map(r => (
               <tr key={r.id}>
                 <td title={r.data}>{formatDate(r.data)}</td>
                 <td title={r.kategoria?.name || ""}>{r.kategoria?.name}</td>

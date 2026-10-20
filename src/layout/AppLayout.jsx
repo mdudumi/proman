@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 
 export default function MainLayout() {
@@ -22,35 +22,17 @@ export default function MainLayout() {
         </div>
 
         <nav style={styles.nav}>
-          <button
-            type="button"
-            style={{
-              ...styles.navBtn,
-              ...(isActive("/dashboard") ? styles.navBtnActive : {})
-            }}
-            onClick={() => go("/dashboard")}
-          >
+          <NavLink to="/dashboard" style={navLinkStyle}>
             Forma Hyrëse
-          </button>
+          </NavLink>
 
-          <button
-            type="button"
-            style={{
-              ...styles.navBtn,
-              ...(isActive("/admin/kategoria") ? styles.navBtnActive : {})
-            }}
-            onClick={() => go("/admin/kategoria")}
-          >
+          <NavLink to="/admin/kategoria" style={navLinkStyle}>
             Organizim
-          </button>
+          </NavLink>
 
-          <button
-            type="button"
-            style={styles.navBtn}
-            onClick={() => go("/ditor-report")}
-          >
+          <NavLink to="/ditor-report" style={navLinkStyle}>
             Hap Raportin
-          </button>
+          </NavLink>
 
           {showAddButton && (
             <button
@@ -75,6 +57,11 @@ export default function MainLayout() {
     </div>
   );
 }
+
+const navLinkStyle = ({ isActive }) => ({
+  ...styles.navBtn,
+  ...(isActive ? styles.navBtnActive : {})
+});
 
 const styles = {
   shell: {
@@ -113,6 +100,9 @@ const styles = {
   },
 
   navBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    boxSizing: "border-box",
     height: 36,
     padding: "0 12px",
     borderRadius: 10,
@@ -120,12 +110,14 @@ const styles = {
     background: "rgba(255,255,255,.06)",
     color: "var(--text)",
     cursor: "pointer",
-    fontWeight: 750
+    fontSize: 13.33,
+    fontWeight: 750,
+    textDecoration: "none"
   },
 
   navBtnActive: {
-    background: "rgba(255,255,255,.10)",
-    borderColor: "rgba(255,255,255,.26)"
+    background: "rgba(79,124,255,.22)",
+    borderColor: "rgba(79,124,255,.55)"
   },
 
   navBtnPrimary: {

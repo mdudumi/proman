@@ -8,6 +8,7 @@ import "./Dashboard.css";
 export default function Dashboard() {
   const { setOpenAddModal } = useOutletContext();
   const [showAdd, setShowAdd] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setOpenAddModal(() => () => setShowAdd(true));
@@ -19,7 +20,7 @@ export default function Dashboard() {
       <div className="right right--full">
         <div className="rightTitle">Të dhëna të regjistruara</div>
         <div className="rightBody">
-          <DitorTable />
+          <DitorTable refreshKey={refreshKey} />
         </div>
       </div>
 
@@ -27,7 +28,10 @@ export default function Dashboard() {
         <Modal title="Shto të dhënë" onClose={() => setShowAdd(false)}>
           <DitorForm
             mode="create"
-            onSaved={() => setShowAdd(false)}
+            onSaved={() => {
+              setShowAdd(false);
+              setRefreshKey(k => k + 1);
+            }}
           />
         </Modal>
       )}

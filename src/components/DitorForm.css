@@ -77,9 +77,8 @@
   letter-spacing: .02em;
 }
 
-/* Inputs */
-.form-grid input,
-.form-grid select{
+/* Inputs (dropdowns are styled in styles.css) */
+.form-grid input{
   width: 100%;
   height: 40px;
   padding: 0 12px;
@@ -91,8 +90,7 @@
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
-.form-grid input:focus,
-.form-grid select:focus{
+.form-grid input:focus{
   border-color: rgba(110,168,255,.55);
   box-shadow: 0 0 0 4px rgba(110,168,255,.12);
   background: rgba(0,0,0,.26);

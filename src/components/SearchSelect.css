@@ -1,0 +1,78 @@
+/* Searchable dropdown. The closed look is shared with <select> in styles.css,
+   and the colours come from the same --select-* variables. */
+.ss-trigger {
+  display: block;
+  text-align: left;
+}
+
+.ss-value {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The open list */
+.ss-panel {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  border: 1px solid var(--select-border);
+  border-radius: 12px;
+  background: var(--select-menu-bg);
+  color: var(--select-text);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  font-size: 14px;
+  overflow: hidden;
+}
+
+.ss-search {
+  flex: none;
+  height: 34px;
+  margin: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--select-border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.ss-search:focus {
+  border-color: var(--select-focus);
+  box-shadow: 0 0 0 3px var(--select-focus-ring);
+}
+
+.ss-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 6px 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.ss-option {
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ss-option.is-active {
+  background: var(--select-option-active);
+}
+
+.ss-option.is-selected {
+  font-weight: 700;
+}
+
+.ss-empty {
+  padding: 4px 16px 12px;
+  color: var(--select-muted);
+}

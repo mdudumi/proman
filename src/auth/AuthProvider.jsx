@@ -11,7 +11,8 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+  // { userId, status: "ready" | "inactive" | "error", profile }
+  const [profileResult, setProfileResult] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // 1️⃣ Get initial session + listen for changes
@@ -43,52 +44,59 @@ export function AuthProvider({ children }) {
 
   // 2️⃣ Load profile AFTER session exists
   useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
     let mounted = true;
 
-    async function loadProfile() {
-      if (!session?.user) {
-        setProfile(null);
-        return;
-      }
+    supabase
+      .from("proman_users")
+      .select("user_id, email, role, is_active")
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!mounted) return;
 
-      const { data, error } = await supabase
-        .from("proman_users")
-        .select("user_id, email, role, is_active")
-        .eq("user_id", session.user.id)
-        .single();
+        if (error) {
+          console.warn("Profile fetch failed:", error);
+          // A failed re-check (e.g. on token refresh) keeps an already loaded profile.
+          setProfileResult(prev =>
+            prev?.userId === userId && prev.status === "ready"
+              ? prev
+              : { userId, status: "error", profile: null }
+          );
+          return;
+        }
 
-      if (!mounted) return;
+        // No proman_users row, or is_active = false
+        if (!data?.is_active) {
+          setProfileResult({ userId, status: "inactive", profile: null });
+          return;
+        }
 
-      if (error) {
-        console.warn("Profile fetch blocked or missing:", error);
-        setProfile(null);
-        return;
-      }
-
-      if (!data.is_active) {
-        console.warn("User inactive:", data.email);
-        setProfile(null);
-        return;
-      }
-
-      setProfile(data);
-    }
-
-    loadProfile();
+        setProfileResult({ userId, status: "ready", profile: data });
+      });
 
     return () => {
       mounted = false;
     };
   }, [session]);
 
+  // Until the current user's result arrives, the profile is "loading".
+  const userId = session?.user?.id;
+  const current = userId && profileResult?.userId === userId ? profileResult : null;
+  const profile = current?.profile ?? null;
+  const profileStatus = current?.status ?? "loading";
+
   const value = useMemo(
     () => ({
       session,
       user: session?.user ?? null,
       profile,
+      profileStatus,
       loading,
     }),
-    [session, profile, loading]
+    [session, profile, profileStatus, loading]
   );
 
   return (
