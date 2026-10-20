@@ -9,6 +9,7 @@ const PAGE_SIZE = 100;
 
 export default function DitorTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
   const [editRow, setEditRow] = useState(null);
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
@@ -106,9 +107,11 @@ export default function DitorTable({ refreshKey = 0 }) {
 
     if (error) {
       console.error(error);
+      setError(error.message);
       return;
     }
 
+    setError("");
     setRows(data || []);
     setTotalRows(count || 0);
   }, [filters, page]);
@@ -330,7 +333,18 @@ export default function DitorTable({ refreshKey = 0 }) {
           </thead>
 
           <tbody>
-            {rows.length === 0 && (
+            {error && (
+              <tr>
+                <td colSpan="10" className="dtEmpty dtError">
+                  Të dhënat nuk u ngarkuan: {error}
+                  <button className="dtRetryBtn" onClick={load}>
+                    Provo përsëri
+                  </button>
+                </td>
+              </tr>
+            )}
+
+            {!error && rows.length === 0 && (
               <tr>
                 <td colSpan="10" className="dtEmpty">
                   No records found
@@ -338,7 +352,7 @@ export default function DitorTable({ refreshKey = 0 }) {
               </tr>
             )}
 
-            {rows.map(r => (
+            {!error && rows.map(r => (
               <tr key={r.id}>
                 <td title={r.data}>{formatDate(r.data)}</td>
                 <td title={r.kategoria?.name || ""}>{r.kategoria?.name}</td>

@@ -48,6 +48,7 @@ export default function DitorReport() {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -135,6 +136,7 @@ export default function DitorReport() {
 
   async function loadReport() {
     setLoading(true);
+    setError("");
 
     const params = {
       p_from_date: filters.fromDate || null,
@@ -151,6 +153,7 @@ export default function DitorReport() {
 
       if (error) {
         console.error("RPC error:", error);
+        setError(error.message);
         setRows([]);
         return;
       }
@@ -164,6 +167,7 @@ export default function DitorReport() {
       setRows(sorted);
     } catch (err) {
       console.error("Report load exception:", err);
+      setError(err.message || String(err));
       setRows([]);
     } finally {
       setLoading(false);
@@ -976,7 +980,18 @@ export default function DitorReport() {
                   </tr>
                 )}
 
-                {!loading && rows.length === 0 && (
+                {!loading && error && (
+                  <tr>
+                    <td colSpan={visibleColumns.length} className="dr-empty dr-error">
+                      Raporti nuk u ngarkua: {error}
+                      <button className="dr-btn dr-btn-secondary dr-retry" onClick={loadReport}>
+                        Provo përsëri
+                      </button>
+                    </td>
+                  </tr>
+                )}
+
+                {!loading && !error && rows.length === 0 && (
                   <tr>
                     <td colSpan={visibleColumns.length} className="dr-empty">
                       Nuk ka të dhëna për filtrat e zgjedhur.

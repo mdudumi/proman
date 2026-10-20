@@ -485,6 +485,14 @@ body {
   font-weight: 700;
 }
 
+.dr-table td.dr-error {
+  color: var(--dr-negative);
+}
+
+.dr-retry {
+  margin-left: 12px;
+}
+
 /* NEGATIVE */
 .neg {
   color: var(--dr-negative) !important;
