@@ -3,6 +3,9 @@ import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS } from "../lib/categoryIds";
 import "./DitorForm.css";
 
+// Categories that hold currencies, buyers/sellers and other non-product items.
+const SYSTEM_CATEGORY_IDS = [CATEGORY_IDS.MONEDHA, CATEGORY_IDS.BLERESI_SHITESI, CATEGORY_IDS.TJETER];
+
 const DitorForm = forwardRef(function DitorForm(
   { mode = "create", initialData, onSaved, onCancel, hideBottomButton = false },
   ref
@@ -24,13 +27,16 @@ const DitorForm = forwardRef(function DitorForm(
     shuma_input: initialData?.shuma_leke ?? ""
   }));
 
+  const initialKategoriaId = initialData?.kategoria_id;
+
   useEffect(() => {
     supabase.from("kategoria").select("id,name").order("name")
       .then(({ data, error }) => {
         if (error) console.error(error);
-        setKategorite(data || []);
+        // System categories stay out of the list, except the one of an entry being edited.
+        setKategorite((data || []).filter(k => !SYSTEM_CATEGORY_IDS.includes(k.id) || k.id === initialKategoriaId));
       });
-  }, []);
+  }, [initialKategoriaId]);
 
   useEffect(() => {
     supabase.from("kategoria_list").select("id,name")
@@ -59,10 +65,11 @@ const DitorForm = forwardRef(function DitorForm(
   }, [mode]);
 
   useEffect(() => {
-    // Produkti zgjidhet i pari; kategoria e tij vendoset automatikisht.
+    // The category is picked first and the product list is filtered by it.
+    // Tjetër's items load too, so an existing Tjetër entry still shows its product when edited.
     supabase.from("kategoria_list").select("id,name,kategoria_id")
       .eq("is_active", true)
-      .not("kategoria_id", "in", `(${CATEGORY_IDS.MONEDHA},${CATEGORY_IDS.BLERESI_SHITESI},${CATEGORY_IDS.TJETER})`)
+      .not("kategoria_id", "in", `(${CATEGORY_IDS.MONEDHA},${CATEGORY_IDS.BLERESI_SHITESI})`)
       .order("name")
       .then(({ data, error }) => {
         if (error) console.error(error);
@@ -70,15 +77,16 @@ const DitorForm = forwardRef(function DitorForm(
       });
   }, []);
 
+  const kategoriaProdukte = form.kategoria_id
+    ? produkte.filter(p => String(p.kategoria_id) === String(form.kategoria_id))
+    : [];
+
   function setField(name, value) {
-    setForm(prev => {
-      if (name === "produkti_id") {
-        const produkti = produkte.find(item => String(item.id) === String(value));
-        return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id || prev.kategoria_id };
-      }
-      if (name === "kategoria_id") return { ...prev, kategoria_id: value, produkti_id: "" };
-      return { ...prev, [name]: value };
-    });
+    setForm(prev =>
+      name === "kategoria_id"
+        ? { ...prev, kategoria_id: value, produkti_id: "" }
+        : { ...prev, [name]: value }
+    );
   }
 
   // 👉 values
@@ -164,23 +172,24 @@ const DitorForm = forwardRef(function DitorForm(
           </div>
 
           <div className="field">
-            <label>Produkti</label>
-            <select
-              value={form.produkti_id}
-              onChange={e => setField("produkti_id", e.target.value)}
-            >
-              <option value="">Select</option>
-              {produkte.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
             <label>Kategoria</label>
             <select value={form.kategoria_id} onChange={e => setField("kategoria_id", e.target.value)}>
               <option value="">Select</option>
               {kategorite.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+            </select>
+          </div>
+
+          <div className="field">
+            <label>Produkti</label>
+            <select
+              value={form.produkti_id}
+              disabled={!form.kategoria_id}
+              onChange={e => setField("produkti_id", e.target.value)}
+            >
+              <option value="">{form.kategoria_id ? "Select" : "Zgjidh kategorinë"}</option>
+              {kategoriaProdukte.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
             </select>
           </div>
 
