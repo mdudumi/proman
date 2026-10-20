@@ -7,7 +7,7 @@ import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
 
-export default function DitorTable() {
+export default function DitorTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
   const [editRow, setEditRow] = useState(null);
   const [page, setPage] = useState(1);
@@ -113,9 +113,10 @@ export default function DitorTable() {
     setTotalRows(count || 0);
   }, [filters, page]);
 
+  // refreshKey changes after an entry is added, so the new entry shows up.
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   async function remove(id) {
     if (!window.confirm("Delete this record?")) return;
