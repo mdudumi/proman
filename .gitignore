@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase schema snapshot (contains business figures)
+supabase/schema-snapshot.csv
+
+# Planning notes (local only)
+planning/
