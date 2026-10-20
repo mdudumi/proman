@@ -203,10 +203,9 @@ body {
   color: var(--dr-text-soft);
 }
 
-.dr-field input,
-.dr-field select {
+.dr-field input {
   width: 100%;
-  height: 42px;
+  height: 40px;
   border: 1px solid var(--dr-border);
   border-radius: 12px;
   padding: 0 12px;
@@ -217,15 +216,21 @@ body {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.dr-field input:focus,
-.dr-field select:focus {
+.dr-field input:focus {
   border-color: #60a5fa;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
-.dr-field select option {
-  color: #111827;
-  background: #fff;
+/* Dropdowns: the shared look from styles.css, in this page's light colours */
+.dr-page select {
+  --select-bg: #fff;
+  --select-text: #111827;
+  --select-border: var(--dr-border);
+  --select-menu-bg: #fff;
+  --select-focus: #60a5fa;
+  --select-focus-ring: rgba(37, 99, 235, 0.12);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color-scheme: light;
 }
 
 /* COLUMN PICKER */
