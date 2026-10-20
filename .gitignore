@@ -28,3 +28,6 @@ supabase/schema-snapshot.csv
 
 # Planning notes (local only)
 planning/
+
+# Claude Code skills (local only)
+.claude/skills/
