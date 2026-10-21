@@ -178,12 +178,29 @@ export default function DitorReport() {
     return FLAT_COLUMNS.filter(col => selectedColumns.includes(col.key));
   }, [selectedColumns]);
 
+  // Either filter can be picked first: a category narrows the product list, a product fills in its category.
   const filteredProdukte = useMemo(() => {
-    if (!filters.kategoria_id) return [];
+    if (!filters.kategoria_id) return produkte;
     return produkte.filter(
       p => String(p.kategoria_id) === String(filters.kategoria_id)
     );
   }, [produkte, filters.kategoria_id]);
+
+  function setKategoria(value) {
+    setFilters(prev => {
+      // Keep the product only if it belongs to the new category.
+      const produkti = produkte.find(p => String(p.id) === String(prev.produkti_id));
+      const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
+      return { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
+    });
+  }
+
+  function setProdukti(value) {
+    setFilters(prev => {
+      const produkti = produkte.find(p => String(p.id) === String(value));
+      return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
+    });
+  }
 
   const reportPeriod = useMemo(() => {
     if (!rows.length) {
@@ -753,13 +770,7 @@ export default function DitorReport() {
               <label>Kategoria</label>
               <SearchSelect
                 value={filters.kategoria_id}
-                onChange={value =>
-                  setFilters(prev => ({
-                    ...prev,
-                    kategoria_id: value,
-                    produkti_id: ""
-                  }))
-                }
+                onChange={setKategoria}
                 options={kategori}
                 placeholder="All"
               />
@@ -769,8 +780,8 @@ export default function DitorReport() {
               <label>Produkti</label>
               <SearchSelect
                 value={filters.produkti_id}
-                disabled={!filters.kategoria_id || !filteredProdukte.length}
-                onChange={value => setFilters(prev => ({ ...prev, produkti_id: value }))}
+                disabled={!filteredProdukte.length}
+                onChange={setProdukti}
                 options={filteredProdukte}
                 placeholder="All"
               />
