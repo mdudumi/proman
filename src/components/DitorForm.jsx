@@ -1,11 +1,8 @@
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { CATEGORY_IDS } from "../lib/categoryIds";
+import { CATEGORY_IDS, SYSTEM_CATEGORY_IDS } from "../lib/categoryIds";
 import SearchSelect from "./SearchSelect";
 import "./DitorForm.css";
-
-// Categories that hold currencies, buyers/sellers and other non-product items.
-const SYSTEM_CATEGORY_IDS = [CATEGORY_IDS.MONEDHA, CATEGORY_IDS.BLERESI_SHITESI, CATEGORY_IDS.TJETER];
 
 const DitorForm = forwardRef(function DitorForm(
   { mode = "create", initialData, onSaved, onCancel, hideBottomButton = false },
