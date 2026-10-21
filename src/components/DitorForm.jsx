@@ -4,6 +4,15 @@ import { CATEGORY_IDS, SYSTEM_CATEGORY_IDS } from "../lib/categoryIds";
 import SearchSelect from "./SearchSelect";
 import "./DitorForm.css";
 
+// The date last picked in the add form. It's kept until the page reloads, so the form reopens on it.
+let rememberedDate = "";
+
+// Today in local time; toISOString() would give yesterday's date just after midnight.
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const DitorForm = forwardRef(function DitorForm(
   { mode = "create", initialData, onSaved, onCancel, hideBottomButton = false },
   ref
@@ -15,7 +24,7 @@ const DitorForm = forwardRef(function DitorForm(
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState(() => ({
-    data: initialData?.data || new Date().toISOString().slice(0, 10),
+    data: initialData?.data || rememberedDate || today(),
     kategoria_id: initialData?.kategoria_id || "",
     produkti_id: initialData?.produkti_id || "",
     monedha_id: initialData?.monedha_id || "",
@@ -81,6 +90,8 @@ const DitorForm = forwardRef(function DitorForm(
     : produkte.filter(p => kategorite.some(k => String(k.id) === String(p.kategoria_id)));
 
   function setField(name, value) {
+    if (name === "data" && mode === "create") rememberedDate = value;
+
     setForm(prev => {
       if (name === "produkti_id") {
         const produkti = produkte.find(p => String(p.id) === String(value));
