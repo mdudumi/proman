@@ -29,6 +29,8 @@ const FLAT_COLUMNS = [
 
 const DEFAULT_COLUMNS = FLAT_COLUMNS.map(x => x.key);
 
+const NOT_ENTRY_CATEGORY_IDS = [CATEGORY_IDS.MONEDHA, CATEGORY_IDS.BLERESI_SHITESI];
+
 const GROUP_BY_OPTIONS = [
   { key: "", label: "Pa grupim" },
   { key: "kategoria", label: "Grupo sipas Kategorisë" },
@@ -115,16 +117,13 @@ export default function DitorReport() {
       if (monedhaRes.error) console.error(monedhaRes.error);
       if (bleresiRes.error) console.error(bleresiRes.error);
 
-      setKategori(kategoriRes.data || []);
+      // Currencies and buyers/sellers are never an entry's category, so they aren't offered.
+      // Tjetër is: its entries show in the report with their amount.
+      setKategori((kategoriRes.data || []).filter(x => !NOT_ENTRY_CATEGORY_IDS.includes(x.id)));
 
       const allProdukte = produkteRes.data || [];
       const filteredProdukteBase = allProdukte.filter(
-        x =>
-          ![
-            CATEGORY_IDS.MONEDHA,
-            CATEGORY_IDS.BLERESI_SHITESI,
-            CATEGORY_IDS.TJETER
-          ].includes(x.kategoria_id)
+        x => !NOT_ENTRY_CATEGORY_IDS.includes(x.kategoria_id)
       );
 
       setProdukte(filteredProdukteBase);
