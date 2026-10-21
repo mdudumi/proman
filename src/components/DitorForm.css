@@ -90,6 +90,12 @@
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
+/* Filled in by the form, not typed: unit price, and Sasia for Tjetër */
+.form-grid input.input-readonly{
+  opacity: .65;
+  cursor: default;
+}
+
 .form-grid input:focus{
   border-color: rgba(110,168,255,.55);
   box-shadow: 0 0 0 4px rgba(110,168,255,.12);

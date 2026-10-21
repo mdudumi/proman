@@ -1,6 +1,6 @@
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { CATEGORY_IDS, SYSTEM_CATEGORY_IDS } from "../lib/categoryIds";
+import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import SearchSelect from "./SearchSelect";
 import "./DitorForm.css";
 
@@ -34,16 +34,14 @@ const DitorForm = forwardRef(function DitorForm(
     shuma_input: initialData?.shuma_leke ?? ""
   }));
 
-  const initialKategoriaId = initialData?.kategoria_id;
-
   useEffect(() => {
     supabase.from("kategoria").select("id,name").order("name")
       .then(({ data, error }) => {
         if (error) console.error(error);
-        // System categories stay out of the list, except the one of an entry being edited.
-        setKategorite((data || []).filter(k => !SYSTEM_CATEGORY_IDS.includes(k.id) || k.id === initialKategoriaId));
+        // Every category except currencies and buyers/sellers, which have their own fields. Tjetër included.
+        setKategorite((data || []).filter(k => !NOT_ENTRY_CATEGORY_IDS.includes(k.id)));
       });
-  }, [initialKategoriaId]);
+  }, []);
 
   useEffect(() => {
     supabase.from("kategoria_list").select("id,name")
@@ -73,10 +71,9 @@ const DitorForm = forwardRef(function DitorForm(
 
   useEffect(() => {
     // Either field can be picked first: a category narrows the product list, a product fills in its category.
-    // Tjetër's items load too, so an existing Tjetër entry still shows its product when edited.
     supabase.from("kategoria_list").select("id,name,kategoria_id")
       .eq("is_active", true)
-      .not("kategoria_id", "in", `(${CATEGORY_IDS.MONEDHA},${CATEGORY_IDS.BLERESI_SHITESI})`)
+      .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
       .order("name")
       .then(({ data, error }) => {
         if (error) console.error(error);
@@ -93,19 +90,28 @@ const DitorForm = forwardRef(function DitorForm(
     if (name === "data" && mode === "create") rememberedDate = value;
 
     setForm(prev => {
+      let next;
       if (name === "produkti_id") {
         const produkti = produkte.find(p => String(p.id) === String(value));
-        return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
-      }
-      if (name === "kategoria_id") {
+        next = { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
+      } else if (name === "kategoria_id") {
         // Keep the product only if it belongs to the new category.
         const produkti = produkte.find(p => String(p.id) === String(prev.produkti_id));
         const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
-        return { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
+        next = { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
+      } else {
+        next = { ...prev, [name]: value };
       }
-      return { ...prev, [name]: value };
+
+      // Tjetër entries are money movements. The database needs a quantity above 0, so it's fixed
+      // at 1; the reports never count a Tjetër quantity as kilograms.
+      if (next.kategoria_id === CATEGORY_IDS.TJETER) return { ...next, sasia: "1" };
+      if (prev.kategoria_id === CATEGORY_IDS.TJETER) return { ...next, sasia: "" };
+      return next;
     });
   }
+
+  const isTjeter = form.kategoria_id === CATEGORY_IDS.TJETER;
 
   // 👉 values
   const sasia = Number(form.sasia || 0);
@@ -154,7 +160,7 @@ const DitorForm = forwardRef(function DitorForm(
       setForm(prev => ({
         ...prev,
         produkti_id: "",
-        sasia: "",
+        sasia: prev.kategoria_id === CATEGORY_IDS.TJETER ? "1" : "",
         shuma_input: ""
       }));
     }
@@ -234,8 +240,15 @@ const DitorForm = forwardRef(function DitorForm(
           </div>
 
           <div className="field">
-            <label>Sasia</label>
-            <input type="number" value={form.sasia} onChange={e => setField("sasia", e.target.value)} step="any" />
+            <label>{isTjeter ? "Sasia (nuk llogaritet si kg)" : "Sasia"}</label>
+            <input
+              type="number"
+              value={form.sasia}
+              onChange={e => setField("sasia", e.target.value)}
+              step="any"
+              readOnly={isTjeter}
+              className={isTjeter ? "input-readonly" : undefined}
+            />
           </div>
 
           <div className="field">
@@ -243,18 +256,20 @@ const DitorForm = forwardRef(function DitorForm(
             <input type="number" value={form.shuma_input} onChange={e => setField("shuma_input", e.target.value)} step="any" />
           </div>
 
-          {/* 👉 NEW FIELD */}
-          <div className="field">
-            <label>
-              Çmimi për njësi (ALL)
-            </label>
-            <input
-              type="number"
-              value={cmimi_njesi}
-              readOnly
-              className="input-readonly"
-            />
-          </div>
+          {/* A price per kg means nothing for Tjetër's money movements. */}
+          {!isTjeter && (
+            <div className="field">
+              <label>
+                Çmimi për njësi (ALL)
+              </label>
+              <input
+                type="number"
+                value={cmimi_njesi}
+                readOnly
+                className="input-readonly"
+              />
+            </div>
+          )}
         </div>
 
         {!hideBottomButton && (

@@ -4,5 +4,5 @@ export const CATEGORY_IDS = {
   TJETER: "7bea04f2-8209-4f7c-aea2-d9ae0b0d1111"
 };
 
-// Categories that hold currencies, buyers/sellers and money movements, not products.
-export const SYSTEM_CATEGORY_IDS = [CATEGORY_IDS.MONEDHA, CATEGORY_IDS.BLERESI_SHITESI, CATEGORY_IDS.TJETER];
+// Currencies and buyers/sellers have their own fields in an entry; they are never its category.
+export const NOT_ENTRY_CATEGORY_IDS = [CATEGORY_IDS.MONEDHA, CATEGORY_IDS.BLERESI_SHITESI];

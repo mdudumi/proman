@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { CATEGORY_IDS } from "../lib/categoryIds";
+import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
@@ -28,8 +28,6 @@ const FLAT_COLUMNS = [
 ];
 
 const DEFAULT_COLUMNS = FLAT_COLUMNS.map(x => x.key);
-
-const NOT_ENTRY_CATEGORY_IDS = [CATEGORY_IDS.MONEDHA, CATEGORY_IDS.BLERESI_SHITESI];
 
 const GROUP_BY_OPTIONS = [
   { key: "", label: "Pa grupim" },
