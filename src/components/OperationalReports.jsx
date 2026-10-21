@@ -13,6 +13,16 @@ const dateLabel = value => {
   return year && month && day ? `${day}.${month}.${year}` : value;
 };
 
+// Tjetër entries are money movements (reconciliations, bank, cash, VAT), not goods.
+const isTjeter = row => row.kategoria?.id === CATEGORY_IDS.TJETER;
+// They keep their lekë amount everywhere, but have no kilograms and no unit price.
+const qty = (row, value) => (row.tjeter ? "—" : money(value));
+const unitCost = (row, value, kg) => (row.tjeter ? "—" : money(kg ? value / kg : 0));
+const TJETER_NOTES = {
+  daily: "Regjistrimet e kategorisë Tjetër (lëvizje parash) shfaqen vetëm me shumën, pa sasi dhe pa kosto për njësi.",
+  stock: "Regjistrimet e kategorisë Tjetër (lëvizje parash) llogariten me shumën, pa sasi dhe pa kosto për njësi."
+};
+
 export default function OperationalReports() {
   const [view, setView] = useState("daily");
   const [rows, setRows] = useState([]);
@@ -47,9 +57,9 @@ export default function OperationalReports() {
     const map = new Map();
     filtered.forEach(row => {
       const key = `${row.data}|${row.produkti?.id || ""}`;
-      const current = map.get(key) || { data: row.data, produkti: row.produkti?.name || "Pa produkt", kategoria: row.kategoria?.name || "", hyrjeSasi: 0, hyrjeVlere: 0, daljeSasi: 0, daljeVlere: 0 };
+      const current = map.get(key) || { data: row.data, produkti: row.produkti?.name || "Pa produkt", kategoria: row.kategoria?.name || "", tjeter: isTjeter(row), hyrjeSasi: 0, hyrjeVlere: 0, daljeSasi: 0, daljeVlere: 0 };
       const isIn = row.veprimi === "Hyrje/Blerje";
-      current[isIn ? "hyrjeSasi" : "daljeSasi"] += number(row.sasia);
+      if (!current.tjeter) current[isIn ? "hyrjeSasi" : "daljeSasi"] += number(row.sasia);
       current[isIn ? "hyrjeVlere" : "daljeVlere"] += number(row.shuma_leke);
       map.set(key, current);
     });
@@ -60,9 +70,9 @@ export default function OperationalReports() {
     const map = new Map();
     filtered.forEach(row => {
       const key = row.produkti?.id || row.produkti?.name || "";
-      const current = map.get(key) || { produktiId: row.produkti?.id, kategoriaId: row.kategoria?.id, produkti: row.produkti?.name || "Pa produkt", kategoria: row.kategoria?.name || "", sasi: 0, vlere: 0, hyrje: 0, dalje: 0 };
+      const current = map.get(key) || { produktiId: row.produkti?.id, kategoriaId: row.kategoria?.id, produkti: row.produkti?.name || "Pa produkt", kategoria: row.kategoria?.name || "", tjeter: isTjeter(row), sasi: 0, vlere: 0, hyrje: 0, dalje: 0 };
       const sign = row.veprimi === "Hyrje/Blerje" ? 1 : -1;
-      current.sasi += sign * number(row.sasia);
+      if (!current.tjeter) current.sasi += sign * number(row.sasia);
       current.vlere += sign * number(row.shuma_leke);
       current[sign === 1 ? "hyrje" : "dalje"] += number(row.shuma_leke);
       map.set(key, current);
@@ -85,15 +95,20 @@ export default function OperationalReports() {
     hyrjeSasi: total.hyrjeSasi + row.hyrjeSasi,
     hyrjeVlere: total.hyrjeVlere + row.hyrjeVlere,
     daljeSasi: total.daljeSasi + row.daljeSasi,
-    daljeVlere: total.daljeVlere + row.daljeVlere
-  }), { hyrjeSasi: 0, hyrjeVlere: 0, daljeSasi: 0, daljeVlere: 0 }), [daily]);
+    daljeVlere: total.daljeVlere + row.daljeVlere,
+    // Average prices use goods only.
+    hyrjeVlereMall: total.hyrjeVlereMall + (row.tjeter ? 0 : row.hyrjeVlere),
+    daljeVlereMall: total.daljeVlereMall + (row.tjeter ? 0 : row.daljeVlere)
+  }), { hyrjeSasi: 0, hyrjeVlere: 0, daljeSasi: 0, daljeVlere: 0, hyrjeVlereMall: 0, daljeVlereMall: 0 }), [daily]);
 
   const stockSummary = useMemo(() => stock.reduce((total, row) => ({
     hyrje: total.hyrje + row.hyrje,
     dalje: total.dalje + row.dalje,
     sasi: total.sasi + row.sasi,
-    vlere: total.vlere + row.vlere
-  }), { hyrje: 0, dalje: 0, sasi: 0, vlere: 0 }), [stock]);
+    vlere: total.vlere + row.vlere,
+    // The average price per kg uses goods only.
+    vlereMall: total.vlereMall + (row.tjeter ? 0 : row.vlere)
+  }), { hyrje: 0, dalje: 0, sasi: 0, vlere: 0, vlereMall: 0 }), [stock]);
 
   const ledgerSummary = useMemo(() => ledger.reduce((total, row) => ({
     hyrje: total.hyrje + row.hyrje,
@@ -106,11 +121,11 @@ export default function OperationalReports() {
     ? [
         ["Sasia hyrje", money(dailySummary.hyrjeSasi)], ["Vlera hyrje", money(dailySummary.hyrjeVlere)],
         ["Sasia dalje", money(dailySummary.daljeSasi)], ["Vlera dalje", money(dailySummary.daljeVlere)],
-        ["Kosto mes. hyrje", money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlere / dailySummary.hyrjeSasi : 0)],
-        ["Kosto mes. dalje", money(dailySummary.daljeSasi ? dailySummary.daljeVlere / dailySummary.daljeSasi : 0)]
+        ["Kosto mes. hyrje", money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlereMall / dailySummary.hyrjeSasi : 0)],
+        ["Kosto mes. dalje", money(dailySummary.daljeSasi ? dailySummary.daljeVlereMall / dailySummary.daljeSasi : 0)]
       ]
     : view === "stock"
-      ? [["Vlera hyrje", money(stockSummary.hyrje)], ["Vlera dalje", money(stockSummary.dalje)], ["Sasia në gjendje", money(stockSummary.sasi)], ["Vlera në gjendje", money(stockSummary.vlere)], ["Kosto mesatare", money(stockSummary.sasi ? stockSummary.vlere / stockSummary.sasi : 0)]]
+      ? [["Vlera hyrje", money(stockSummary.hyrje)], ["Vlera dalje", money(stockSummary.dalje)], ["Sasia në gjendje", money(stockSummary.sasi)], ["Vlera në gjendje", money(stockSummary.vlere)], ["Kosto mesatare", money(stockSummary.sasi ? stockSummary.vlereMall / stockSummary.sasi : 0)]]
       : [["Totali hyrje", money(ledgerSummary.hyrje)], ["Totali pagesa", money(ledgerSummary.dalje)], ["Detyrimi", money(ledgerSummary.detyrim)], ["Llogari", String(ledger.length)]];
 
   function exportPDF() {
@@ -124,14 +139,14 @@ export default function OperationalReports() {
         ? ["Kategoria", "Produkti", "Vlera hyrje", "Vlera dalje", "Sasia në gjendje", "Vlera në gjendje", "Kosto/njësi"]
         : ["Blerësi / Shitësi", "Hyrje", "Dalje / Pagesa", "Detyrimi"];
     const body = view === "daily"
-      ? daily.map(row => [dateLabel(row.data), row.kategoria, row.produkti, money(row.hyrjeSasi), money(row.hyrjeVlere), money(row.hyrjeSasi ? row.hyrjeVlere / row.hyrjeSasi : 0), money(row.daljeSasi), money(row.daljeVlere), money(row.daljeSasi ? row.daljeVlere / row.daljeSasi : 0)])
+      ? daily.map(row => [dateLabel(row.data), row.kategoria, row.produkti, qty(row, row.hyrjeSasi), money(row.hyrjeVlere), unitCost(row, row.hyrjeVlere, row.hyrjeSasi), qty(row, row.daljeSasi), money(row.daljeVlere), unitCost(row, row.daljeVlere, row.daljeSasi)])
       : view === "stock"
-        ? stock.map(row => [row.kategoria, row.produkti, money(row.hyrje), money(row.dalje), money(row.sasi), money(row.vlere), money(row.sasi ? row.vlere / row.sasi : 0)])
+        ? stock.map(row => [row.kategoria, row.produkti, money(row.hyrje), money(row.dalje), qty(row, row.sasi), money(row.vlere), unitCost(row, row.vlere, row.sasi)])
         : ledger.map(row => [row.bleresi, money(row.hyrje), money(row.dalje), money(row.detyrim)]);
     const totals = view === "daily"
-      ? ["TOTALI", "", "", money(dailySummary.hyrjeSasi), money(dailySummary.hyrjeVlere), money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlere / dailySummary.hyrjeSasi : 0), money(dailySummary.daljeSasi), money(dailySummary.daljeVlere), money(dailySummary.daljeSasi ? dailySummary.daljeVlere / dailySummary.daljeSasi : 0)]
+      ? ["TOTALI", "", "", money(dailySummary.hyrjeSasi), money(dailySummary.hyrjeVlere), money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlereMall / dailySummary.hyrjeSasi : 0), money(dailySummary.daljeSasi), money(dailySummary.daljeVlere), money(dailySummary.daljeSasi ? dailySummary.daljeVlereMall / dailySummary.daljeSasi : 0)]
       : view === "stock"
-        ? ["TOTALI", "", money(stockSummary.hyrje), money(stockSummary.dalje), money(stockSummary.sasi), money(stockSummary.vlere), money(stockSummary.sasi ? stockSummary.vlere / stockSummary.sasi : 0)]
+        ? ["TOTALI", "", money(stockSummary.hyrje), money(stockSummary.dalje), money(stockSummary.sasi), money(stockSummary.vlere), money(stockSummary.sasi ? stockSummary.vlereMall / stockSummary.sasi : 0)]
         : ["TOTALI", money(ledgerSummary.hyrje), money(ledgerSummary.dalje), money(ledgerSummary.detyrim)];
 
     const drawHeader = () => {
@@ -218,7 +233,7 @@ export default function OperationalReports() {
   }
 
   return <section className="op-card">
-    <div className="op-header"><div><h2>{title}</h2><p>Data në rend rritës. Sasia, shuma dhe kostoja për njësi llogariten nga faturat e regjistruara.</p></div><div className="op-actions"><button className="op-print" onClick={exportPDF}>Shkarko PDF</button>{view === "stock" && <button className="op-save" onClick={saveAnnualClosing} disabled={savingClosing}>{savingClosing ? "Duke ruajtur…" : "Ruaj mbylljen vjetore"}</button>}</div></div>
+    <div className="op-header"><div><h2>{title}</h2><p>Data në rend rritës. Sasia, shuma dhe kostoja për njësi llogariten nga faturat e regjistruara.{TJETER_NOTES[view] && ` ${TJETER_NOTES[view]}`}</p></div><div className="op-actions"><button className="op-print" onClick={exportPDF}>Shkarko PDF</button>{view === "stock" && <button className="op-save" onClick={saveAnnualClosing} disabled={savingClosing}>{savingClosing ? "Duke ruajtur…" : "Ruaj mbylljen vjetore"}</button>}</div></div>
     <div className="op-tabs">
       <button className={view === "daily" ? "active" : ""} onClick={() => setView("daily")}>Faturat ditore</button>
       <button className={view === "stock" ? "active" : ""} onClick={() => setView("stock")}>Gjendja / Mbyllja</button>
@@ -226,8 +241,8 @@ export default function OperationalReports() {
     </div>
     <div className="op-filters"><label>Nga<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label><label>Në<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>{view === "ledger" && <label>Blerësi / Shitësi<SearchSelect value={buyer} onChange={setBuyer} options={buyers} placeholder="Të gjithë" /></label>}</div>
     {loading ? <p>Duke ngarkuar…</p> : <><div className="op-metrics">{metrics.map(([label, value]) => <div className="op-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="op-table-wrap">
-      {view === "daily" && <table className="op-table"><thead><tr><th>Data</th><th>Kategoria</th><th>Produkti</th><th>Sasi hyrje</th><th>Shuma hyrje</th><th>Kosto/njësi hyrje</th><th>Sasi dalje</th><th>Shuma dalje</th><th>Kosto/njësi dalje</th></tr></thead><tbody>{daily.map(row => <tr key={`${row.data}-${row.produkti}`}><td>{dateLabel(row.data)}</td><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrjeSasi)}</td><td>{money(row.hyrjeVlere)}</td><td>{money(row.hyrjeSasi ? row.hyrjeVlere / row.hyrjeSasi : 0)}</td><td>{money(row.daljeSasi)}</td><td>{money(row.daljeVlere)}</td><td>{money(row.daljeSasi ? row.daljeVlere / row.daljeSasi : 0)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td></td><td>{money(dailySummary.hyrjeSasi)}</td><td>{money(dailySummary.hyrjeVlere)}</td><td>{money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlere / dailySummary.hyrjeSasi : 0)}</td><td>{money(dailySummary.daljeSasi)}</td><td>{money(dailySummary.daljeVlere)}</td><td>{money(dailySummary.daljeSasi ? dailySummary.daljeVlere / dailySummary.daljeSasi : 0)}</td></tr></tfoot></table>}
-      {view === "stock" && <table className="op-table"><thead><tr><th>Kategoria</th><th>Produkti</th><th>Vlera hyrje</th><th>Vlera dalje</th><th>Sasia (kg) – Në gjendje</th><th>Vlera (lekë) – Në gjendje</th><th>Kosto/njësi në gjendje</th></tr></thead><tbody>{stock.map(row => <tr key={row.produkti}><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td>{money(row.sasi)}</td><td>{money(row.vlere)}</td><td>{money(row.sasi ? row.vlere / row.sasi : 0)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td>{money(stockSummary.hyrje)}</td><td>{money(stockSummary.dalje)}</td><td>{money(stockSummary.sasi)}</td><td>{money(stockSummary.vlere)}</td><td>{money(stockSummary.sasi ? stockSummary.vlere / stockSummary.sasi : 0)}</td></tr></tfoot></table>}
+      {view === "daily" && <table className="op-table"><thead><tr><th>Data</th><th>Kategoria</th><th>Produkti</th><th>Sasi hyrje</th><th>Shuma hyrje</th><th>Kosto/njësi hyrje</th><th>Sasi dalje</th><th>Shuma dalje</th><th>Kosto/njësi dalje</th></tr></thead><tbody>{daily.map(row => <tr key={`${row.data}-${row.produkti}`}><td>{dateLabel(row.data)}</td><td>{row.kategoria}</td><td>{row.produkti}</td><td>{qty(row, row.hyrjeSasi)}</td><td>{money(row.hyrjeVlere)}</td><td>{unitCost(row, row.hyrjeVlere, row.hyrjeSasi)}</td><td>{qty(row, row.daljeSasi)}</td><td>{money(row.daljeVlere)}</td><td>{unitCost(row, row.daljeVlere, row.daljeSasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td></td><td>{money(dailySummary.hyrjeSasi)}</td><td>{money(dailySummary.hyrjeVlere)}</td><td>{money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlereMall / dailySummary.hyrjeSasi : 0)}</td><td>{money(dailySummary.daljeSasi)}</td><td>{money(dailySummary.daljeVlere)}</td><td>{money(dailySummary.daljeSasi ? dailySummary.daljeVlereMall / dailySummary.daljeSasi : 0)}</td></tr></tfoot></table>}
+      {view === "stock" && <table className="op-table"><thead><tr><th>Kategoria</th><th>Produkti</th><th>Vlera hyrje</th><th>Vlera dalje</th><th>Sasia (kg) – Në gjendje</th><th>Vlera (lekë) – Në gjendje</th><th>Kosto/njësi në gjendje</th></tr></thead><tbody>{stock.map(row => <tr key={row.produkti}><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td>{qty(row, row.sasi)}</td><td>{money(row.vlere)}</td><td>{unitCost(row, row.vlere, row.sasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td>{money(stockSummary.hyrje)}</td><td>{money(stockSummary.dalje)}</td><td>{money(stockSummary.sasi)}</td><td>{money(stockSummary.vlere)}</td><td>{money(stockSummary.sasi ? stockSummary.vlereMall / stockSummary.sasi : 0)}</td></tr></tfoot></table>}
       {view === "ledger" && <table className="op-table"><thead><tr><th>Blerësi / Shitësi</th><th>Hyrje</th><th>Dalje / Pagesa</th><th>Detyrimi</th></tr></thead><tbody>{ledger.map(row => <tr key={row.bleresi}><td>{row.bleresi}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td className={row.detyrim < 0 ? "negative" : ""}>{money(row.detyrim)}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{money(ledgerSummary.hyrje)}</td><td>{money(ledgerSummary.dalje)}</td><td>{money(ledgerSummary.detyrim)}</td></tr></tfoot></table>}
     </div></>}
   </section>;
