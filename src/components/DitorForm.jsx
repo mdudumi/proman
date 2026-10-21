@@ -66,7 +66,7 @@ const DitorForm = forwardRef(function DitorForm(
   }, [mode]);
 
   useEffect(() => {
-    // The category is picked first and the product list is filtered by it.
+    // Either field can be picked first: a category narrows the product list, a product fills in its category.
     // Tjetër's items load too, so an existing Tjetër entry still shows its product when edited.
     supabase.from("kategoria_list").select("id,name,kategoria_id")
       .eq("is_active", true)
@@ -78,16 +78,25 @@ const DitorForm = forwardRef(function DitorForm(
       });
   }, []);
 
+  // Without a category, list the products of every category shown in the Kategoria list.
   const kategoriaProdukte = form.kategoria_id
     ? produkte.filter(p => String(p.kategoria_id) === String(form.kategoria_id))
-    : [];
+    : produkte.filter(p => kategorite.some(k => String(k.id) === String(p.kategoria_id)));
 
   function setField(name, value) {
-    setForm(prev =>
-      name === "kategoria_id"
-        ? { ...prev, kategoria_id: value, produkti_id: "" }
-        : { ...prev, [name]: value }
-    );
+    setForm(prev => {
+      if (name === "produkti_id") {
+        const produkti = produkte.find(p => String(p.id) === String(value));
+        return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
+      }
+      if (name === "kategoria_id") {
+        // Keep the product only if it belongs to the new category.
+        const produkti = produkte.find(p => String(p.id) === String(prev.produkti_id));
+        const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
+        return { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
+      }
+      return { ...prev, [name]: value };
+    });
   }
 
   // 👉 values
@@ -185,10 +194,8 @@ const DitorForm = forwardRef(function DitorForm(
             <label>Produkti</label>
             <SearchSelect
               value={form.produkti_id}
-              disabled={!form.kategoria_id}
               onChange={value => setField("produkti_id", value)}
               options={kategoriaProdukte}
-              placeholder={form.kategoria_id ? "Select" : "Zgjidh kategorinë"}
             />
           </div>
 
