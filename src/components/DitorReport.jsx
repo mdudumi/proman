@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { CATEGORY_IDS } from "../lib/categoryIds";
+import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
@@ -115,16 +115,13 @@ export default function DitorReport() {
       if (monedhaRes.error) console.error(monedhaRes.error);
       if (bleresiRes.error) console.error(bleresiRes.error);
 
-      setKategori(kategoriRes.data || []);
+      // Currencies and buyers/sellers are never an entry's category, so they aren't offered.
+      // Tjetër is: its entries show in the report with their amount.
+      setKategori((kategoriRes.data || []).filter(x => !NOT_ENTRY_CATEGORY_IDS.includes(x.id)));
 
       const allProdukte = produkteRes.data || [];
       const filteredProdukteBase = allProdukte.filter(
-        x =>
-          ![
-            CATEGORY_IDS.MONEDHA,
-            CATEGORY_IDS.BLERESI_SHITESI,
-            CATEGORY_IDS.TJETER
-          ].includes(x.kategoria_id)
+        x => !NOT_ENTRY_CATEGORY_IDS.includes(x.kategoria_id)
       );
 
       setProdukte(filteredProdukteBase);
@@ -179,12 +176,29 @@ export default function DitorReport() {
     return FLAT_COLUMNS.filter(col => selectedColumns.includes(col.key));
   }, [selectedColumns]);
 
+  // Either filter can be picked first: a category narrows the product list, a product fills in its category.
   const filteredProdukte = useMemo(() => {
-    if (!filters.kategoria_id) return [];
+    if (!filters.kategoria_id) return produkte;
     return produkte.filter(
       p => String(p.kategoria_id) === String(filters.kategoria_id)
     );
   }, [produkte, filters.kategoria_id]);
+
+  function setKategoria(value) {
+    setFilters(prev => {
+      // Keep the product only if it belongs to the new category.
+      const produkti = produkte.find(p => String(p.id) === String(prev.produkti_id));
+      const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
+      return { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
+    });
+  }
+
+  function setProdukti(value) {
+    setFilters(prev => {
+      const produkti = produkte.find(p => String(p.id) === String(value));
+      return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
+    });
+  }
 
   const reportPeriod = useMemo(() => {
     if (!rows.length) {
@@ -754,13 +768,7 @@ export default function DitorReport() {
               <label>Kategoria</label>
               <SearchSelect
                 value={filters.kategoria_id}
-                onChange={value =>
-                  setFilters(prev => ({
-                    ...prev,
-                    kategoria_id: value,
-                    produkti_id: ""
-                  }))
-                }
+                onChange={setKategoria}
                 options={kategori}
                 placeholder="All"
               />
@@ -770,8 +778,8 @@ export default function DitorReport() {
               <label>Produkti</label>
               <SearchSelect
                 value={filters.produkti_id}
-                disabled={!filters.kategoria_id || !filteredProdukte.length}
-                onChange={value => setFilters(prev => ({ ...prev, produkti_id: value }))}
+                disabled={!filteredProdukte.length}
+                onChange={setProdukti}
                 options={filteredProdukte}
                 placeholder="All"
               />

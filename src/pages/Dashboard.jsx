@@ -26,12 +26,10 @@ export default function Dashboard() {
 
       {showAdd && (
         <Modal title="Shto të dhënë" onClose={() => setShowAdd(false)}>
+          {/* Stays open after saving so several entries can be added in a row; the ✕ closes it. */}
           <DitorForm
             mode="create"
-            onSaved={() => {
-              setShowAdd(false);
-              setRefreshKey(k => k + 1);
-            }}
+            onSaved={() => setRefreshKey(k => k + 1)}
           />
         </Modal>
       )}
