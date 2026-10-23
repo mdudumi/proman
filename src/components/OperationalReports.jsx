@@ -4,6 +4,7 @@ import { CATEGORY_IDS } from "../lib/categoryIds";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SearchSelect from "./SearchSelect";
+import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "../lib/pdfPage";
 import "./OperationalReports.css";
 
 const number = value => Number(value || 0);
@@ -130,7 +131,7 @@ export default function OperationalReports() {
 
   function exportPDF() {
     const doc = new jsPDF("l", "mm", "a4");
-    const pageWidth = doc.internal.pageSize.getWidth();
+    const box = contentBox(doc);
     const period = `Periudha: ${from ? dateLabel(from) : "Fillimi"} – ${to ? dateLabel(to) : "Sot"}`;
     const generated = new Date().toLocaleString("sq-AL");
     const headers = view === "daily"
@@ -149,29 +150,26 @@ export default function OperationalReports() {
         ? ["TOTALI", "", money(stockSummary.hyrje), money(stockSummary.dalje), money(stockSummary.sasi), money(stockSummary.vlere), money(stockSummary.sasi ? stockSummary.vlereMall / stockSummary.sasi : 0)]
         : ["TOTALI", money(ledgerSummary.hyrje), money(ledgerSummary.dalje), money(ledgerSummary.detyrim)];
 
-    const drawHeader = () => {
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, pageWidth, 23, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text("PROMAN", 12, 10);
-      doc.setFontSize(11);
-      doc.text(title.toUpperCase(), 12, 17);
-      doc.setTextColor(51, 65, 85);
-      doc.setFontSize(9);
-      doc.text(period, 12, 30);
-      doc.text(`Gjeneruar: ${generated}`, pageWidth - 12, 30, { align: "right" });
-      if (buyer) doc.text(`Blerësi / Shitësi: ${buyers.find(item => item.id === buyer)?.name || ""}`, 12, 36);
-    };
+    const bandBottom = drawTitleBand(doc, title.toUpperCase());
+    doc.setTextColor(51, 65, 85);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(period, box.left, bandBottom + 6);
+    doc.text(`Gjeneruar: ${generated}`, box.right, bandBottom + 6, { align: "right" });
+    if (buyer) doc.text(`Blerësi / Shitësi: ${buyers.find(item => item.id === buyer)?.name || ""}`, box.left, bandBottom + 11);
 
-    drawHeader();
-    const metricWidth = 52;
+    // Summary boxes: up to six in a row, sharing the width inside the margins; more wrap to a new row.
+    const metricsTop = bandBottom + (buyer ? 15 : 10);
+    const perRow = Math.min(metrics.length, 6);
+    const gap = 4;
+    const metricWidth = (box.width - gap * (perRow - 1)) / perRow;
+    const metricHeight = 15;
+    const metricRows = Math.ceil(metrics.length / perRow);
     metrics.forEach(([label, value], index) => {
-      const x = 10 + (index % 5) * 56;
-      const y = buyer ? 42 : 38;
+      const x = box.left + (index % perRow) * (metricWidth + gap);
+      const y = metricsTop + Math.floor(index / perRow) * (metricHeight + gap);
       doc.setFillColor(241, 245, 249);
-      doc.roundedRect(x, y, metricWidth, 15, 1.5, 1.5, "F");
+      doc.roundedRect(x, y, metricWidth, metricHeight, 1.5, 1.5, "F");
       doc.setTextColor(71, 85, 105);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(6.5);
@@ -181,30 +179,20 @@ export default function OperationalReports() {
       doc.text(value, x + 3, y + 11);
     });
     autoTable(doc, {
-      startY: (buyer ? 42 : 38) + (metrics.length > 5 ? 34 : 18),
+      startY: metricsTop + metricRows * (metricHeight + gap) + 1,
       head: [headers],
       body,
       foot: totals ? [totals] : undefined,
       showFoot: totals ? "lastPage" : "never",
       theme: "grid",
-      margin: { top: 26, left: 10, right: 10, bottom: 14 },
+      margin: TABLE_MARGIN,
       styles: { fontSize: 7, cellPadding: 1.4, lineColor: [203, 213, 225], lineWidth: 0.1, overflow: "linebreak" },
       headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold", halign: "center" },
       footStyles: { fillColor: [219, 234, 254], textColor: [15, 23, 42], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       didDrawPage: data => {
-        if (data.pageNumber > 1) {
-          doc.setFillColor(15, 23, 42);
-          doc.rect(0, 0, pageWidth, 16, "F");
-          doc.setTextColor(255, 255, 255);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.text(`PROMAN — ${title.toUpperCase()}`, 10, 10);
-        }
-        doc.setTextColor(100, 116, 139);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.text(`Faqja ${doc.internal.getNumberOfPages()}`, pageWidth - 10, 204, { align: "right" });
+        if (data.pageNumber > 1) drawContinuationBand(doc, title.toUpperCase());
+        drawFooter(doc, "PROMAN", `Faqja ${doc.internal.getNumberOfPages()}`);
       }
     });
     doc.save(`${title.replace(/[^a-z0-9]+/gi, "_")}_${from || "fillimi"}_${to || "sot"}.pdf`);
