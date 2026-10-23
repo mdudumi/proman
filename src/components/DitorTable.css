@@ -232,6 +232,56 @@
   cursor:not-allowed;
 }
 
+/* Excel / PDF export buttons, also used in the PDF prompt */
+.dtExportActions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.dtExportBtn{
+  height:36px;
+  padding:0 14px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.08);
+  color:var(--text);
+  font-weight:800;
+  cursor:pointer;
+}
+
+.dtExportBtn:hover:not(:disabled){
+  background:rgba(255,255,255,.14);
+}
+
+.dtExportBtn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+
+.dtExportBtn--primary{
+  border-color:rgba(110,168,255,.45);
+  background:rgba(110,168,255,.22);
+}
+
+.dtExportBtn--primary:hover:not(:disabled){
+  background:rgba(110,168,255,.30);
+}
+
+.dtDialogText{
+  margin:0 0 12px;
+  color:var(--text);
+  line-height:1.5;
+}
+
+.dtDialogActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+
 .dtPagerText{
   font-size:13px;
   color:var(--text);

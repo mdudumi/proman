@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS } from "../lib/categoryIds";
+import { entriesQuery, fetchAllEntries } from "../lib/ditorEntries";
+import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
@@ -14,6 +16,8 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [editRow, setEditRow] = useState(null);
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
+  const [exporting, setExporting] = useState("");
+  const [pdfPrompt, setPdfPrompt] = useState(false);
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -76,35 +80,7 @@ export default function DitorTable({ refreshKey = 0 }) {
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    let q = supabase
-      .from("ditor")
-      .select(
-        `
-        id,
-        data,
-        veprimi,
-        sasia,
-        shuma_leke,
-        kosto_per_njesi,
-        kategoria:kategoria_id(id,name),
-        produkti:produkti_id(id,name),
-        monedha:monedha_id(id,name),
-        bleresi:bleresi_shitesi_id(id,name)
-      `,
-        { count: "exact" }
-      )
-      .order("data", { ascending: true })
-      .order("created_at", { ascending: true });
-
-    if (filters.fromDate) q = q.gte("data", filters.fromDate);
-    if (filters.toDate) q = q.lte("data", filters.toDate);
-    if (filters.kategoria_id) q = q.eq("kategoria_id", filters.kategoria_id);
-    if (filters.produkti_id) q = q.eq("produkti_id", filters.produkti_id);
-    if (filters.monedha_id) q = q.eq("monedha_id", filters.monedha_id);
-    if (filters.bleresi_id) q = q.eq("bleresi_shitesi_id", filters.bleresi_id);
-    if (filters.veprimi) q = q.eq("veprimi", filters.veprimi);
-
-    const { data, error, count } = await q.range(from, to);
+    const { data, error, count } = await entriesQuery(filters, { count: "exact" }).range(from, to);
 
     if (error) {
       console.error(error);
@@ -161,6 +137,47 @@ export default function DitorTable({ refreshKey = 0 }) {
       bleresi_id: "",
       veprimi: ""
     });
+  }
+
+  // The active filters in words, printed at the top of the exports.
+  function describeFilters() {
+    const name = (list, id) => list.find(item => String(item.id) === String(id))?.name || "";
+    const parts = [
+      filters.kategoria_id && `Kategoria: ${name(kategorite, filters.kategoria_id)}`,
+      filters.produkti_id && `Produkti: ${name(produkte, filters.produkti_id)}`,
+      filters.monedha_id && `Monedha: ${name(monedha, filters.monedha_id)}`,
+      filters.bleresi_id && `Blerësi/Shitësi: ${name(bleresit, filters.bleresi_id)}`,
+      filters.veprimi && `Veprimi: ${filters.veprimi}`
+    ].filter(Boolean);
+    return `Filtrat: ${parts.length ? parts.join(" | ") : "asnjë, të gjitha regjistrimet"}`;
+  }
+
+  // Exports fetch every matching entry, not only the page on screen.
+  async function runExport(kind) {
+    setPdfPrompt(false);
+    setExporting(kind);
+    try {
+      const entries = await fetchAllEntries(filters);
+      const meta = {
+        period: `${filters.fromDate ? formatDate(filters.fromDate) : "Fillimi"} – ${filters.toDate ? formatDate(filters.toDate) : "Sot"}`,
+        filtersText: describeFilters(),
+        veprimi: filters.veprimi,
+        fileBase: `te-dhenat_${filters.fromDate || "fillimi"}_${filters.toDate || "sot"}`
+      };
+      if (kind === "excel") await exportEntriesExcel(entries, meta);
+      else exportEntriesPdf(entries, meta);
+    } catch (err) {
+      console.error(err);
+      alert(`Eksporti nuk u krye: ${err.message || err}`);
+    } finally {
+      setExporting("");
+    }
+  }
+
+  // Over the PDF limit, ask first: the PDF prints only the latest rows.
+  function exportPdf() {
+    if (totalRows > PDF_ROW_LIMIT) setPdfPrompt(true);
+    else runExport("pdf");
   }
 
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
@@ -255,6 +272,15 @@ export default function DitorTable({ refreshKey = 0 }) {
       <div className="dtPager">
         <div className="dtPagerInfo">
           Duke shfaqur <strong>{startRow}</strong> - <strong>{endRow}</strong> nga <strong>{totalRows}</strong> rekorde
+        </div>
+
+        <div className="dtExportActions">
+          <button className="dtExportBtn" onClick={() => runExport("excel")} disabled={!totalRows || Boolean(exporting)}>
+            {exporting === "excel" ? "Duke përgatitur…" : "Eksporto Excel"}
+          </button>
+          <button className="dtExportBtn" onClick={exportPdf} disabled={!totalRows || Boolean(exporting)}>
+            {exporting === "pdf" ? "Duke përgatitur…" : "Eksporto PDF"}
+          </button>
         </div>
 
         <div className="dtPagerActions">
@@ -357,6 +383,24 @@ export default function DitorTable({ refreshKey = 0 }) {
           </tbody>
         </table>
       </div>
+
+      {pdfPrompt && (
+        <Modal title="Eksporti në PDF" onClose={() => setPdfPrompt(false)} className="modal--small">
+          <p className="dtDialogText">
+            Ky PDF do të përfshijë <strong>{PDF_ROW_LIMIT.toLocaleString("en-US")}</strong> regjistrimet më të fundit
+            nga <strong>{totalRows.toLocaleString("en-US")}</strong> që përputhen me filtrat. Totalet në fund do të
+            llogariten për të gjitha regjistrimet.
+          </p>
+          <p className="dtDialogText">
+            Për të gjitha regjistrimet, ngushtoni datat ose eksportoni në Excel.
+          </p>
+          <div className="dtDialogActions">
+            <button className="dtExportBtn" onClick={() => setPdfPrompt(false)}>Anulo</button>
+            <button className="dtExportBtn" onClick={() => runExport("excel")}>Eksporto në Excel</button>
+            <button className="dtExportBtn dtExportBtn--primary" onClick={() => runExport("pdf")}>Shkarko PDF</button>
+          </div>
+        </Modal>
+      )}
 
       {editRow && (
         <Modal title="Edit Entry" onClose={() => setEditRow(null)}>
