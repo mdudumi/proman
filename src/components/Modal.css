@@ -18,6 +18,11 @@
   overflow-y: auto;
 }
 
+/* Narrow modal for short prompts */
+.modal--small {
+  width: 520px;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

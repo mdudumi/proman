@@ -157,10 +157,12 @@ const DitorForm = forwardRef(function DitorForm(
     }
 
     if (mode !== "edit") {
+      // The next entry starts with a new category choice; date, currency, buyer/seller and action stay.
       setForm(prev => ({
         ...prev,
+        kategoria_id: "",
         produkti_id: "",
-        sasia: prev.kategoria_id === CATEGORY_IDS.TJETER ? "1" : "",
+        sasia: "",
         shuma_input: ""
       }));
     }

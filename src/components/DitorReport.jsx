@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
+import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "../lib/pdfPage";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
@@ -388,31 +389,23 @@ export default function DitorReport() {
     if (!rows.length) return;
 
     const doc = new jsPDF("l", "mm", "a4");
-    const pageWidth = doc.internal.pageSize.getWidth();
+    const box = contentBox(doc);
+    const pdfTitle = "RAPORTI I GJENDJES DHE BILANCIT";
     const generatedAt = new Date().toLocaleString("sq-AL");
-    const filtersText = doc.splitTextToSize(getFilterSummaryText(), pageWidth - 28);
+    doc.setFontSize(7.4);
+    const filtersText = doc.splitTextToSize(getFilterSummaryText(), box.width);
 
-    function drawHeader() {
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, pageWidth, 22, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text("PROMAN", 12, 9);
-      doc.setFontSize(11);
-      doc.text("RAPORTI I GJENDJES DHE BILANCIT", 12, 16);
-      doc.setTextColor(51, 65, 85);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text(`Periudha: ${formatDate(reportPeriod.from)} – ${formatDate(reportPeriod.to)}`, 12, 29);
-      doc.text(`Rreshta: ${rows.length}`, 150, 29);
-      doc.text(`Gjeneruar: ${generatedAt}`, 205, 29);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.4);
-      doc.text(filtersText, 12, 35);
-    }
-
-    drawHeader();
+    const bandBottom = drawTitleBand(doc, pdfTitle);
+    doc.setTextColor(51, 65, 85);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(`Periudha: ${formatDate(reportPeriod.from)} – ${formatDate(reportPeriod.to)}`, box.left, bandBottom + 6);
+    doc.text(`Rreshta: ${rows.length}`, box.left + 135, bandBottom + 6);
+    doc.text(`Gjeneruar: ${generatedAt}`, box.right, bandBottom + 6, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.4);
+    const filtersY = bandBottom + 11;
+    doc.text(filtersText, box.left, filtersY);
 
     const head = [visibleColumns.map(c => c.label)];
     const body = [];
@@ -493,13 +486,13 @@ export default function DitorReport() {
     ];
 
     autoTable(doc, {
-      startY: 35 + filtersText.length * 3.4 + 4,
+      startY: filtersY + filtersText.length * 3.4 + 4,
       head,
       body,
       foot,
       showFoot: "lastPage",
       theme: "grid",
-      margin: { top: 28, left: 10, right: 10, bottom: 14 },
+      margin: TABLE_MARGIN,
       styles: {
         fontSize: 6.6,
         cellPadding: 1.35,
@@ -516,31 +509,22 @@ export default function DitorReport() {
       bodyStyles: {
         textColor: [30, 41, 59]
       },
-      columnStyles: visibleColumns.reduce((acc, col, idx) => {
-        const availableWidth = 277;
-        const dateWidth = Math.min(30, availableWidth / Math.max(visibleColumns.length, 1));
-        const otherWidth = (availableWidth - dateWidth) / Math.max(visibleColumns.length - 1, 1);
-        acc[idx] = {
-          halign: col.type === "number" ? "right" : "left",
-          cellWidth: col.key === "data" ? dateWidth : otherWidth
-        };
-        return acc;
-      }, {}),
+      // The columns share exactly the width inside the margins, however many are shown.
+      columnStyles: (() => {
+        const hasDate = visibleColumns.some(col => col.key === "data");
+        const dateWidth = hasDate ? Math.min(30, box.width / visibleColumns.length) : 0;
+        const otherWidth = (box.width - dateWidth) / Math.max(visibleColumns.length - (hasDate ? 1 : 0), 1);
+        return visibleColumns.reduce((acc, col, idx) => {
+          acc[idx] = {
+            halign: col.type === "number" ? "right" : "left",
+            cellWidth: col.key === "data" ? dateWidth : otherWidth
+          };
+          return acc;
+        }, {});
+      })(),
       didDrawPage: data => {
-        if (data.pageNumber > 1) {
-          doc.setFillColor(15, 23, 42);
-          doc.rect(0, 0, pageWidth, 16, "F");
-          doc.setTextColor(255, 255, 255);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.text("PROMAN — RAPORTI I GJENDJES DHE BILANCIT", 10, 10);
-        }
-        const pageNumber = doc.internal.getNumberOfPages();
-        doc.setTextColor(100, 116, 139);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.text(`PROMAN • Faqja ${pageNumber}`, 10, 204);
-        doc.text("Raport i gjeneruar nga sistemi", pageWidth - 10, 204, { align: "right" });
+        if (data.pageNumber > 1) drawContinuationBand(doc, pdfTitle);
+        drawFooter(doc, `PROMAN • Faqja ${doc.internal.getNumberOfPages()}`, "Raport i gjeneruar nga sistemi");
       }
     });
 
