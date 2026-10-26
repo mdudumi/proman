@@ -1,0 +1,151 @@
+/* Date field with a calendar. The field keeps each page's own input look;
+   the calendar uses the --select-* colours that dropdowns use (styles.css). */
+.dp-field {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.dp-field .dp-input {
+  width: 100%;
+  padding-right: 40px;
+  cursor: text;
+}
+
+.dp-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--select-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.dp-toggle:hover {
+  background: var(--select-option-active);
+  color: var(--select-text);
+}
+
+/* The open calendar */
+.dp-panel {
+  position: fixed;
+  z-index: 10000;
+  width: 296px;
+  padding: 12px;
+  border: 1px solid var(--select-border);
+  border-radius: 14px;
+  background: var(--select-menu-bg);
+  color: var(--select-text);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  font-size: 14px;
+  user-select: none;
+}
+
+.dp-btn {
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.dp-btn:hover {
+  background: var(--select-option-active);
+}
+
+.dp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dp-nav {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--select-muted);
+}
+
+.dp-nav:hover {
+  color: var(--select-text);
+}
+
+.dp-title {
+  height: 32px;
+  padding: 0 12px;
+  font-weight: 700;
+}
+
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.dp-weekday {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  color: var(--select-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dp-day {
+  height: 36px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-day.is-outside {
+  color: var(--select-muted);
+  opacity: 0.6;
+}
+
+.dp-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--select-focus);
+  font-weight: 700;
+}
+
+.dp-day.is-selected,
+.dp-month.is-selected {
+  background: var(--select-focus);
+  color: var(--select-text);
+  font-weight: 700;
+  opacity: 1;
+}
+
+/* Same height as the day grid, so switching views doesn't make the calendar jump */
+.dp-months {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 6px;
+  height: 256px;
+}
+
+.dp-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--select-border);
+}
+
+.dp-link {
+  height: 30px;
+  padding: 0 12px;
+  font-weight: 700;
+}

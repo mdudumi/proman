@@ -2,6 +2,7 @@ import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import SearchSelect from "./SearchSelect";
+import DatePicker from "./DatePicker";
 import "./DitorForm.css";
 
 // The date last picked in the add form. It's kept until the page reloads, so the form reopens on it.
@@ -194,7 +195,7 @@ const DitorForm = forwardRef(function DitorForm(
         <div className={`form-grid ${isModal ? "form-grid--3col" : "form-grid--2col"}`}>
           <div className="field">
             <label>Data</label>
-            <input type="date" value={form.data} onChange={e => setField("data", e.target.value)} />
+            <DatePicker value={form.data} onChange={value => setField("data", value)} />
           </div>
 
           <div className="field">
