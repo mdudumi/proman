@@ -6,6 +6,7 @@ import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entr
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
+import DatePicker from "./DatePicker";
 import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
@@ -192,19 +193,19 @@ export default function DitorTable({ refreshKey = 0 }) {
         <div className="dtFiltersGrid">
           <div>
             <label>Nga</label>
-            <input
-              type="date"
+            <DatePicker
               value={filters.fromDate}
-              onChange={e => setF("fromDate", e.target.value)}
+              onChange={value => setF("fromDate", value)}
+              clearable
             />
           </div>
 
           <div>
             <label>Në</label>
-            <input
-              type="date"
+            <DatePicker
               value={filters.toDate}
-              onChange={e => setF("toDate", e.target.value)}
+              onChange={value => setF("toDate", value)}
+              clearable
             />
           </div>
 

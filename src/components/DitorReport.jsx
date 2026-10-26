@@ -10,6 +10,7 @@ import { saveAs } from "file-saver";
 import "./DitorReport.css";
 import OperationalReports from "./OperationalReports";
 import SearchSelect from "./SearchSelect";
+import DatePicker from "./DatePicker";
 
 const VEPRIM_OPTIONS = [
   { id: "Hyrje/Blerje", name: "Hyrje/Blerje" },
@@ -732,19 +733,19 @@ export default function DitorReport() {
           <div className="dr-filters">
             <div className="dr-field">
               <label>Nga</label>
-              <input
-                type="date"
+              <DatePicker
                 value={filters.fromDate}
-                onChange={e => setFilters({ ...filters, fromDate: e.target.value })}
+                onChange={value => setFilters(prev => ({ ...prev, fromDate: value }))}
+                clearable
               />
             </div>
 
             <div className="dr-field">
               <label>Në</label>
-              <input
-                type="date"
+              <DatePicker
                 value={filters.toDate}
-                onChange={e => setFilters({ ...filters, toDate: e.target.value })}
+                onChange={value => setFilters(prev => ({ ...prev, toDate: value }))}
+                clearable
               />
             </div>
 
