@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS } from "../lib/categoryIds";
-import { entriesQuery, fetchAllEntries } from "../lib/ditorEntries";
+import { entriesQuery, fetchAllEntries, isTjeterEntry } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
@@ -10,6 +10,9 @@ import DatePicker from "./DatePicker";
 import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
+
+// Tjetër entries are money movements: their quantity of 1 isn't kilograms, so they have no kg and no unit cost.
+const TJETER_HINT = "Tjetër: lëvizje parash, pa sasi në kg dhe pa kosto për njësi";
 
 export default function DitorTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
@@ -368,12 +371,16 @@ export default function DitorTable({ refreshKey = 0 }) {
                 <td title={r.monedha?.name || ""}>{r.monedha?.name}</td>
                 <td title={r.bleresi?.name || ""}>{r.bleresi?.name}</td>
                 <td title={r.veprimi || ""}>{r.veprimi}</td>
-                <td className="num">{r.sasia}</td>
+                <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
+                  {isTjeterEntry(r) ? "—" : r.sasia}
+                </td>
                 <td className="num">{r.shuma_leke}</td>
-                <td className="num">
-                  {typeof r.kosto_per_njesi === "number"
-                    ? r.kosto_per_njesi.toFixed(2)
-                    : ""}
+                <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
+                  {isTjeterEntry(r)
+                    ? "—"
+                    : typeof r.kosto_per_njesi === "number"
+                      ? r.kosto_per_njesi.toFixed(2)
+                      : ""}
                 </td>
                 <td className="actions">
                   <button onClick={() => setEditRow(r)}>✏️</button>
