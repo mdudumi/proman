@@ -7,6 +7,7 @@ import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
+import DitorTotals from "./DitorTotals";
 import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
@@ -22,6 +23,8 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [totalRows, setTotalRows] = useState(0);
   const [exporting, setExporting] = useState("");
   const [pdfPrompt, setPdfPrompt] = useState(false);
+  // Counts edits and deletes, so the totals rows reload after each one.
+  const [changes, setChanges] = useState(0);
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -111,6 +114,7 @@ export default function DitorTable({ refreshKey = 0 }) {
       return;
     }
 
+    setChanges(n => n + 1);
     const newTotal = Math.max(totalRows - 1, 0);
     const maxPage = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
 
@@ -183,6 +187,9 @@ export default function DitorTable({ refreshKey = 0 }) {
     if (totalRows > PDF_ROW_LIMIT) setPdfPrompt(true);
     else runExport("pdf");
   }
+
+  // The totals rows show only while at least one filter is set.
+  const hasFilters = Object.values(filters).some(Boolean);
 
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const startRow = totalRows === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -389,6 +396,10 @@ export default function DitorTable({ refreshKey = 0 }) {
               </tr>
             ))}
           </tbody>
+
+          {hasFilters && !error && totalRows > 0 && (
+            <DitorTotals filters={filters} reloadKey={`${refreshKey}.${changes}`} />
+          )}
         </table>
       </div>
 
@@ -427,6 +438,7 @@ export default function DitorTable({ refreshKey = 0 }) {
             }}
             onSaved={() => {
               setEditRow(null);
+              setChanges(n => n + 1);
               load();
             }}
             onCancel={() => setEditRow(null)}
