@@ -2,6 +2,7 @@ import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import SearchSelect from "./SearchSelect";
+import AmountInput from "./AmountInput";
 import DatePicker from "./DatePicker";
 import "./DitorForm.css";
 
@@ -256,7 +257,7 @@ const DitorForm = forwardRef(function DitorForm(
 
           <div className="field">
             <label>Shuma (ALL)</label>
-            <input type="number" value={form.shuma_input} onChange={e => setField("shuma_input", e.target.value)} step="any" />
+            <AmountInput value={form.shuma_input} onChange={value => setField("shuma_input", value)} />
           </div>
 
           {/* A price per kg means nothing for Tjetër's money movements. */}
