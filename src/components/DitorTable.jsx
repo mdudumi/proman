@@ -7,6 +7,7 @@ import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
+import ClearableSelect from "./ClearableSelect";
 import DitorTotals from "./DitorTotals";
 import "./DitorTable.css";
 
@@ -269,14 +270,14 @@ export default function DitorTable({ refreshKey = 0 }) {
 
           <div>
             <label>Veprimi</label>
-            <select
+            <ClearableSelect
               value={filters.veprimi}
-              onChange={e => setF("veprimi", e.target.value)}
+              onChange={value => setF("veprimi", value)}
             >
               <option value="">All</option>
               <option value="Hyrje/Blerje">Hyrje/Blerje</option>
               <option value="Shitje/Dalje">Shitje/Dalje</option>
-            </select>
+            </ClearableSelect>
           </div>
 
           <div className="dtResetBox">

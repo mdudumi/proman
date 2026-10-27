@@ -4,6 +4,7 @@ import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import SearchSelect from "./SearchSelect";
 import AmountInput from "./AmountInput";
 import DatePicker from "./DatePicker";
+import ClearableSelect from "./ClearableSelect";
 import "./DitorForm.css";
 
 // The date last picked in the add form. It's kept until the page reloads, so the form reopens on it.
@@ -128,6 +129,7 @@ const DitorForm = forwardRef(function DitorForm(
     form.produkti_id &&
     form.monedha_id &&
     form.bleresi_shitesi_id &&
+    form.veprimi &&
     sasia > 0 &&
     shuma_leke > 0;
 
@@ -237,10 +239,11 @@ const DitorForm = forwardRef(function DitorForm(
 
           <div className="field">
             <label>Veprimi</label>
-            <select value={form.veprimi} onChange={e => setField("veprimi", e.target.value)}>
+            <ClearableSelect value={form.veprimi} onChange={value => setField("veprimi", value)}>
+              <option value="">Select</option>
               <option value="Hyrje/Blerje">Hyrje/Blerje</option>
               <option value="Shitje/Dalje">Shitje/Dalje</option>
-            </select>
+            </ClearableSelect>
           </div>
 
           <div className="field">

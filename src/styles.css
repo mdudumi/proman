@@ -27,6 +27,7 @@ html, body {
    Date fields (DatePicker) use the same colours for their calendar. */
 select,
 .ss-trigger,
+.select-field,
 .dp-field {
   --select-bg: rgba(0, 0, 0, 0.18);
   --select-text: var(--text);
@@ -71,6 +72,40 @@ select:disabled,
 .ss-trigger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* The ✕ that clears a dropdown (ClearButton), shown between the value and the arrow */
+.select-field {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.select-field.has-value > select,
+.select-field.has-value > .ss-trigger {
+  padding-right: 58px;
+}
+
+.select-clear {
+  position: absolute;
+  top: 50%;
+  right: 30px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--select-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.select-clear:hover {
+  background: var(--select-option-active);
+  color: var(--select-text);
 }
 
 /* The open list. Without this, the entry form showed light text on a white list. */

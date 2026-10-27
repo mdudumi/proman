@@ -224,6 +224,7 @@ body {
 /* Dropdowns and date fields: the shared look from styles.css, in this page's light colours */
 .dr-page select,
 .dr-page .ss-trigger,
+.dr-page .select-field,
 .dr-page .dp-field {
   --select-bg: #fff;
   --select-text: #111827;

@@ -11,6 +11,7 @@ import "./DitorReport.css";
 import OperationalReports from "./OperationalReports";
 import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
+import ClearableSelect from "./ClearableSelect";
 
 const VEPRIM_OPTIONS = [
   { id: "Hyrje/Blerje", name: "Hyrje/Blerje" },
@@ -792,9 +793,9 @@ export default function DitorReport() {
 
             <div className="dr-field">
               <label>Veprimi</label>
-              <select
+              <ClearableSelect
                 value={filters.veprimi}
-                onChange={e => setFilters({ ...filters, veprimi: e.target.value })}
+                onChange={value => setFilters(prev => ({ ...prev, veprimi: value }))}
               >
                 <option value="">All</option>
                 {VEPRIM_OPTIONS.map(item => (
@@ -802,21 +803,21 @@ export default function DitorReport() {
                     {item.name}
                   </option>
                 ))}
-              </select>
+              </ClearableSelect>
             </div>
 
             <div className="dr-field">
               <label>Grupo sipas</label>
-              <select
+              <ClearableSelect
                 value={filters.groupBy}
-                onChange={e => setFilters({ ...filters, groupBy: e.target.value })}
+                onChange={value => setFilters(prev => ({ ...prev, groupBy: value }))}
               >
                 {GROUP_BY_OPTIONS.map(item => (
                   <option key={item.key} value={item.key}>
                     {item.label}
                   </option>
                 ))}
-              </select>
+              </ClearableSelect>
             </div>
           </div>
         </div>
