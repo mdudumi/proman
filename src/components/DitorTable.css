@@ -186,6 +186,46 @@
   background:rgba(255,255,255,.14);
 }
 
+/* Totals rows for the filtered results: they stay in view at the bottom while the rows scroll */
+.dtTotals{
+  position:sticky;
+  bottom:0;
+  z-index:2;
+}
+
+/* Smaller than the rows, like the header: the totals are longer numbers than any single row,
+   and a wider cell would widen its column and make the table scroll sideways */
+.dtTotals td{
+  padding:8px 12px;
+  border-top:1px solid rgba(110,168,255,.35);
+  /* a blue tint over the page colour, solid so the rows don't show through */
+  background:linear-gradient(rgba(110,168,255,.14), rgba(110,168,255,.14)), var(--bg);
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+/* the numbers are right-aligned, so left padding would only add width */
+.dtTotals td.num{
+  padding-left:0;
+}
+
+/* new totals are on their way */
+.dtTotals.is-stale td{
+  color:var(--muted);
+}
+
+/* loading and error messages wrap instead of stretching the table */
+.dtTotals td.dtTotalsNote{
+  text-align:center;
+  color:var(--muted);
+  white-space:normal;
+}
+
+.dtTotals td.dtTotalsNote.dtError{
+  color:#ff8a8a;
+}
+
 .dtPager{
   display:flex;
   justify-content:space-between;

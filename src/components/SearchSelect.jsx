@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import ClearButton from "./ClearButton";
 import "./SearchSelect.css";
 
 // The list renders in <body> so modals and cards with overflow: hidden don't cut it off.
@@ -28,6 +29,7 @@ const normalize = text =>
  * A dropdown with a search box. Works like <select>: `value` is the
  * chosen row's id, "" means nothing chosen, and `onChange` receives the new id.
  * `options` is a list of { id, name } rows, as they come from Supabase.
+ * A chosen value can be cleared with the ✕, or Backspace / Delete.
  */
 export default function SearchSelect({
   value,
@@ -137,10 +139,19 @@ export default function SearchSelect({
     listRef.current?.children[activeIndex]?.scrollIntoView({ block: "nearest" });
   }, [open, activeIndex]);
 
+  function clear() {
+    onChange("");
+    close(true);
+  }
+
   function onTriggerKeyDown(e) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       openList();
+    } else if ((e.key === "Backspace" || e.key === "Delete") && selected) {
+      // The keyboard's way to the ✕
+      e.preventDefault();
+      clear();
     } else if (e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.metaKey && !e.altKey) {
       // Typing on the closed dropdown opens it and starts the search.
       e.preventDefault();
@@ -168,8 +179,10 @@ export default function SearchSelect({
     }
   }
 
+  const canClear = Boolean(selected) && !disabled;
+
   return (
-    <>
+    <div className={`select-field ${canClear ? "has-value" : ""}`}>
       <button
         ref={triggerRef}
         type="button"
@@ -184,6 +197,8 @@ export default function SearchSelect({
           {selected ? selected.name : placeholder}
         </span>
       </button>
+
+      {canClear && <ClearButton onClear={clear} />}
 
       {open && panelStyle && createPortal(
         <div ref={panelRef} className="ss-panel" style={panelStyle}>
@@ -231,6 +246,6 @@ export default function SearchSelect({
         </div>,
         document.body
       )}
-    </>
+    </div>
   );
 }

@@ -82,3 +82,30 @@ export function entryTotals(rows) {
 
 // Average price per kg for a totals line: goods lekë ÷ goods kilograms.
 export const averagePerKg = line => (line.sasia ? line.shumaMall / line.sasia : null);
+
+// The same totals as entryTotals, for every entry matching the filters, added up by the
+// database (rpc_ditor_totals, supabase/migrations/20261026_ditor_totals.sql) instead of
+// downloading the entries.
+export async function fetchEntryTotals(filters) {
+  const { data, error } = await supabase.rpc("rpc_ditor_totals", {
+    p_from_date: filters.fromDate || null,
+    p_to_date: filters.toDate || null,
+    p_kategoria_id: filters.kategoria_id || null,
+    p_produkti_id: filters.produkti_id || null,
+    p_monedha_id: filters.monedha_id || null,
+    p_bleresi_id: filters.bleresi_id || null,
+    p_veprimi: filters.veprimi || null
+  });
+  if (error) throw error;
+
+  const totals = entryTotals([]);
+  for (const row of data || []) {
+    const line = totals[row.veprimi];
+    if (!line) continue;
+    line.count = Number(row.regjistrime);
+    line.sasia = Number(row.sasia);
+    line.shuma = Number(row.shuma);
+    line.shumaMall = Number(row.shuma_mall);
+  }
+  return totals;
+}

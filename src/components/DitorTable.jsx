@@ -1,15 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { CATEGORY_IDS } from "../lib/categoryIds";
-import { entriesQuery, fetchAllEntries } from "../lib/ditorEntries";
+import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
+import { entriesQuery, fetchAllEntries, isTjeterEntry } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
+import ClearableSelect from "./ClearableSelect";
+import DitorTotals from "./DitorTotals";
 import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
+
+// Tjetër entries are money movements: their quantity of 1 isn't kilograms, so they have no kg and no unit cost.
+const TJETER_HINT = "Tjetër: lëvizje parash, pa sasi në kg dhe pa kosto për njësi";
 
 export default function DitorTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
@@ -19,6 +24,8 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [totalRows, setTotalRows] = useState(0);
   const [exporting, setExporting] = useState("");
   const [pdfPrompt, setPdfPrompt] = useState(false);
+  // Counts edits and deletes, so the totals rows reload after each one.
+  const [changes, setChanges] = useState(0);
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -61,21 +68,20 @@ export default function DitorTable({ refreshKey = 0 }) {
       .then(({ data }) => setBleresit(data || []));
   }, []);
 
+  // Either filter can be picked first: a category narrows the product list, a product fills in its category.
   useEffect(() => {
-    if (!filters.kategoria_id) {
-      setProdukte([]);
-      setFilters(prev => ({ ...prev, produkti_id: "" }));
-      return;
-    }
-
     supabase
       .from("kategoria_list")
-      .select("id,name")
-      .eq("kategoria_id", filters.kategoria_id)
+      .select("id,name,kategoria_id")
       .eq("is_active", true)
-      .order("sort_order")
+      .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
+      .order("name")
       .then(({ data }) => setProdukte(data || []));
-  }, [filters.kategoria_id]);
+  }, []);
+
+  const kategoriaProdukte = filters.kategoria_id
+    ? produkte.filter(p => String(p.kategoria_id) === String(filters.kategoria_id))
+    : produkte;
 
   const load = useCallback(async () => {
     const from = (page - 1) * PAGE_SIZE;
@@ -108,6 +114,7 @@ export default function DitorTable({ refreshKey = 0 }) {
       return;
     }
 
+    setChanges(n => n + 1);
     const newTotal = Math.max(totalRows - 1, 0);
     const maxPage = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
 
@@ -120,11 +127,19 @@ export default function DitorTable({ refreshKey = 0 }) {
 
   function setF(name, value) {
     setPage(1);
-    setFilters(prev =>
-      name === "kategoria_id"
-        ? { ...prev, kategoria_id: value, produkti_id: "" }
-        : { ...prev, [name]: value }
-    );
+    setFilters(prev => {
+      if (name === "produkti_id") {
+        const produkti = produkte.find(p => String(p.id) === String(value));
+        return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
+      }
+      if (name === "kategoria_id") {
+        // Keep the product only if it belongs to the new category.
+        const produkti = produkte.find(p => String(p.id) === String(prev.produkti_id));
+        const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
+        return { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
+      }
+      return { ...prev, [name]: value };
+    });
   }
 
   function resetFilters() {
@@ -181,6 +196,9 @@ export default function DitorTable({ refreshKey = 0 }) {
     else runExport("pdf");
   }
 
+  // The totals rows show only while at least one filter is set.
+  const hasFilters = Object.values(filters).some(Boolean);
+
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const startRow = totalRows === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const endRow = Math.min(page * PAGE_SIZE, totalRows);
@@ -223,9 +241,9 @@ export default function DitorTable({ refreshKey = 0 }) {
             <label>Produkti</label>
             <SearchSelect
               value={filters.produkti_id}
-              disabled={!filters.kategoria_id || !produkte.length}
+              disabled={!kategoriaProdukte.length}
               onChange={value => setF("produkti_id", value)}
-              options={produkte}
+              options={kategoriaProdukte}
               placeholder="All"
             />
           </div>
@@ -252,14 +270,14 @@ export default function DitorTable({ refreshKey = 0 }) {
 
           <div>
             <label>Veprimi</label>
-            <select
+            <ClearableSelect
               value={filters.veprimi}
-              onChange={e => setF("veprimi", e.target.value)}
+              onChange={value => setF("veprimi", value)}
             >
               <option value="">All</option>
               <option value="Hyrje/Blerje">Hyrje/Blerje</option>
               <option value="Shitje/Dalje">Shitje/Dalje</option>
-            </select>
+            </ClearableSelect>
           </div>
 
           <div className="dtResetBox">
@@ -368,12 +386,16 @@ export default function DitorTable({ refreshKey = 0 }) {
                 <td title={r.monedha?.name || ""}>{r.monedha?.name}</td>
                 <td title={r.bleresi?.name || ""}>{r.bleresi?.name}</td>
                 <td title={r.veprimi || ""}>{r.veprimi}</td>
-                <td className="num">{r.sasia}</td>
+                <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
+                  {isTjeterEntry(r) ? "—" : r.sasia}
+                </td>
                 <td className="num">{r.shuma_leke}</td>
-                <td className="num">
-                  {typeof r.kosto_per_njesi === "number"
-                    ? r.kosto_per_njesi.toFixed(2)
-                    : ""}
+                <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
+                  {isTjeterEntry(r)
+                    ? "—"
+                    : typeof r.kosto_per_njesi === "number"
+                      ? r.kosto_per_njesi.toFixed(2)
+                      : ""}
                 </td>
                 <td className="actions">
                   <button onClick={() => setEditRow(r)}>✏️</button>
@@ -382,6 +404,10 @@ export default function DitorTable({ refreshKey = 0 }) {
               </tr>
             ))}
           </tbody>
+
+          {hasFilters && !error && totalRows > 0 && (
+            <DitorTotals filters={filters} reloadKey={`${refreshKey}.${changes}`} />
+          )}
         </table>
       </div>
 
@@ -420,6 +446,7 @@ export default function DitorTable({ refreshKey = 0 }) {
             }}
             onSaved={() => {
               setEditRow(null);
+              setChanges(n => n + 1);
               load();
             }}
             onCancel={() => setEditRow(null)}
