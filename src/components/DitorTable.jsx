@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { CATEGORY_IDS } from "../lib/categoryIds";
+import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import { entriesQuery, fetchAllEntries, isTjeterEntry } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
 import Modal from "./Modal";
@@ -67,21 +67,20 @@ export default function DitorTable({ refreshKey = 0 }) {
       .then(({ data }) => setBleresit(data || []));
   }, []);
 
+  // Either filter can be picked first: a category narrows the product list, a product fills in its category.
   useEffect(() => {
-    if (!filters.kategoria_id) {
-      setProdukte([]);
-      setFilters(prev => ({ ...prev, produkti_id: "" }));
-      return;
-    }
-
     supabase
       .from("kategoria_list")
-      .select("id,name")
-      .eq("kategoria_id", filters.kategoria_id)
+      .select("id,name,kategoria_id")
       .eq("is_active", true)
-      .order("sort_order")
+      .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
+      .order("name")
       .then(({ data }) => setProdukte(data || []));
-  }, [filters.kategoria_id]);
+  }, []);
+
+  const kategoriaProdukte = filters.kategoria_id
+    ? produkte.filter(p => String(p.kategoria_id) === String(filters.kategoria_id))
+    : produkte;
 
   const load = useCallback(async () => {
     const from = (page - 1) * PAGE_SIZE;
@@ -127,11 +126,19 @@ export default function DitorTable({ refreshKey = 0 }) {
 
   function setF(name, value) {
     setPage(1);
-    setFilters(prev =>
-      name === "kategoria_id"
-        ? { ...prev, kategoria_id: value, produkti_id: "" }
-        : { ...prev, [name]: value }
-    );
+    setFilters(prev => {
+      if (name === "produkti_id") {
+        const produkti = produkte.find(p => String(p.id) === String(value));
+        return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
+      }
+      if (name === "kategoria_id") {
+        // Keep the product only if it belongs to the new category.
+        const produkti = produkte.find(p => String(p.id) === String(prev.produkti_id));
+        const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
+        return { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
+      }
+      return { ...prev, [name]: value };
+    });
   }
 
   function resetFilters() {
@@ -233,9 +240,9 @@ export default function DitorTable({ refreshKey = 0 }) {
             <label>Produkti</label>
             <SearchSelect
               value={filters.produkti_id}
-              disabled={!filters.kategoria_id || !produkte.length}
+              disabled={!kategoriaProdukte.length}
               onChange={value => setF("produkti_id", value)}
-              options={produkte}
+              options={kategoriaProdukte}
               placeholder="All"
             />
           </div>
