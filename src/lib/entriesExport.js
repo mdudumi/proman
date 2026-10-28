@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { VEPRIME, averagePerKg, entryTotals, isTjeterEntry } from "./ditorEntries";
+import { entryTotals, isTjeterEntry, totalsLines } from "./ditorEntries";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "./pdfPage";
 
 // Excel and PDF exports of the dashboard entries that match the filters.
@@ -14,6 +14,8 @@ const TITLE = "TË DHËNA TË REGJISTRUARA";
 const HEADERS = ["Data", "Kategoria", "Produkti", "Monedha", "Blerësi/Shitësi", "Veprimi", "Sasia (kg)", "Shuma (lekë)", "Kosto/kg"];
 const TJETER_NOTE =
   "Regjistrimet e kategorisë Tjetër (lëvizje parash) llogariten me shumën në lekë, pa sasi (kg) dhe pa kosto për kg.";
+// Without a product filter the totals mix products, so they have no cost per kg (totalsLines).
+const AVERAGE_NOTE = "Kosto/kg në totale shfaqet vetëm kur filtrohet sipas një produkti.";
 
 const count = n => n.toLocaleString("en-US");
 const money = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,15 +24,6 @@ const kg = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 
 function formatDate(value) {
   const [y, m, d] = String(value || "").split("-");
   return y && m && d ? `${d}.${m}.${y}` : value || "";
-}
-
-// The totals lines: Hyrje and Dalje, or only the action the Veprimi filter picks.
-function totalLines(rows, veprimiFilter) {
-  const totals = entryTotals(rows);
-  return VEPRIME.filter(v => !veprimiFilter || v.value === veprimiFilter).map(v => ({
-    ...totals[v.value],
-    label: `Totali ${v.label} (${count(totals[v.value].count)} regjistrime)`
-  }));
 }
 
 function textCells(row) {
@@ -46,12 +39,12 @@ function textCells(row) {
 
 /**
  * @param rows  every entry matching the filters, oldest first
- * @param meta  { period, filtersText, veprimi, fileBase }
+ * @param meta  { period, filtersText, filters, fileBase }
  */
 export function exportEntriesPdf(rows, meta) {
   const capped = rows.length > PDF_ROW_LIMIT;
   const printed = capped ? rows.slice(-PDF_ROW_LIMIT) : rows;
-  const lines = totalLines(rows, meta.veprimi);
+  const lines = totalsLines(entryTotals(rows), meta.filters);
 
   const doc = new jsPDF("l", "mm", "a4");
   const box = contentBox(doc);
@@ -70,7 +63,7 @@ export function exportEntriesPdf(rows, meta) {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.4);
-  const notes = [meta.filtersText, rows.some(isTjeterEntry) ? TJETER_NOTE : ""]
+  const notes = [meta.filtersText, rows.some(isTjeterEntry) ? TJETER_NOTE : "", meta.filters.produkti_id ? "" : AVERAGE_NOTE]
     .filter(Boolean)
     .flatMap(text => doc.splitTextToSize(text, box.width));
   y += 5;
@@ -118,15 +111,12 @@ export function exportEntriesPdf(rows, meta) {
             styles: { halign: "left", fontStyle: "bolditalic" }
           }]]
         : []),
-      ...lines.map(line => {
-        const average = averagePerKg(line);
-        return [
-          { content: line.label, colSpan: 6, styles: { halign: "left" } },
-          { content: kg(line.sasia), styles: right },
-          { content: money(line.shuma), styles: right },
-          { content: average == null ? "—" : money(average), styles: right }
-        ];
-      })
+      ...lines.map(line => [
+        { content: line.label, colSpan: 6, styles: { halign: "left" } },
+        { content: kg(line.sasia), styles: right },
+        { content: money(line.shuma), styles: right },
+        { content: line.average == null ? "—" : money(line.average), styles: right }
+      ])
     ],
     showFoot: "lastPage",
     theme: "grid",
@@ -152,10 +142,10 @@ export function exportEntriesPdf(rows, meta) {
 
 /**
  * @param rows  every entry matching the filters, oldest first
- * @param meta  { period, filtersText, veprimi, fileBase }
+ * @param meta  { period, filtersText, filters, fileBase }
  */
 export async function exportEntriesExcel(rows, meta) {
-  const lines = totalLines(rows, meta.veprimi);
+  const lines = totalsLines(entryTotals(rows), meta.filters);
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Të dhëna");
   const columns = HEADERS.length;
@@ -177,7 +167,8 @@ export async function exportEntriesExcel(rows, meta) {
     TITLE,
     `Periudha: ${meta.period}   |   Rreshta: ${count(rows.length)}   |   Gjeneruar: ${new Date().toLocaleString("sq-AL")}`,
     meta.filtersText,
-    ...(rows.some(isTjeterEntry) ? [TJETER_NOTE] : [])
+    ...(rows.some(isTjeterEntry) ? [TJETER_NOTE] : []),
+    ...(meta.filters.produkti_id ? [] : [AVERAGE_NOTE])
   ];
   info.forEach((text, i) => {
     const row = sheet.addRow([text]);
@@ -210,8 +201,7 @@ export async function exportEntriesExcel(rows, meta) {
 
   sheet.addRow([]);
   for (const line of lines) {
-    const average = averagePerKg(line);
-    const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia, line.shuma, average ?? "—"]);
+    const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia, line.shuma, line.average ?? "—"]);
     sheet.mergeCells(row.number, 1, row.number, 6);
     row.eachCell(cell => {
       cell.font = { bold: true, color: { argb: "0F172A" } };

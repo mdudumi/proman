@@ -83,6 +83,23 @@ export function entryTotals(rows) {
 // Average price per kg for a totals line: goods lekë ÷ goods kilograms.
 export const averagePerKg = line => (line.sasia ? line.shumaMall / line.sasia : null);
 
+// The totals lines under the dashboard table and in its exports: Hyrje and Dalje, or only the
+// action the Veprimi filter picks. An average price per kg only means something for one product
+// (across products it mixes, say, leaves and roots), so `average` is null unless one is picked.
+export function totalsLines(totals, filters) {
+  const oneProduct = Boolean(filters.produkti_id);
+  return VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi).map(v => {
+    const line = totals[v.value];
+    return {
+      key: v.value,
+      label: `Totali ${v.label} (${line.count.toLocaleString("en-US")} regjistrime)`,
+      sasia: line.sasia,
+      shuma: line.shuma,
+      average: oneProduct ? averagePerKg(line) : null
+    };
+  });
+}
+
 // The same totals as entryTotals, for every entry matching the filters, added up by the
 // database (rpc_ditor_totals, supabase/migrations/20261026_ditor_totals.sql) instead of
 // downloading the entries.

@@ -194,7 +194,7 @@ export default function DitorTable({ refreshKey = 0 }) {
       const meta = {
         period: `${filters.fromDate ? formatDate(filters.fromDate) : "Fillimi"} – ${filters.toDate ? formatDate(filters.toDate) : "Sot"}`,
         filtersText: describeFilters(),
-        veprimi: filters.veprimi,
+        filters,
         fileBase: `te-dhenat_${filters.fromDate || "fillimi"}_${filters.toDate || "sot"}`
       };
       if (kind === "excel") await exportEntriesExcel(entries, meta);
