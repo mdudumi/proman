@@ -68,6 +68,8 @@ export default function DitorReport() {
   const [selectedColumns, setSelectedColumns] = useState(DEFAULT_COLUMNS);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [reportSection, setReportSection] = useState("balance");
+  // Analizat downloads every entry, so it loads the first time its tab is opened, then stays loaded.
+  const [analysisOpened, setAnalysisOpened] = useState(false);
 
   const [kategori, setKategori] = useState([]);
   const [produkte, setProdukte] = useState([]);
@@ -718,7 +720,7 @@ export default function DitorReport() {
             <button className={`dr-btn dr-btn-light ${reportSection === "balance" ? "dr-tab-active" : ""}`} onClick={() => setReportSection("balance")}>
               Bilanci
             </button>
-            <button className={`dr-btn dr-btn-light ${reportSection === "analysis" ? "dr-tab-active" : ""}`} onClick={() => setReportSection("analysis")}>
+            <button className={`dr-btn dr-btn-light ${reportSection === "analysis" ? "dr-tab-active" : ""}`} onClick={() => { setReportSection("analysis"); setAnalysisOpened(true); }}>
               Analizat
             </button>
             {reportSection === "balance" && <>
@@ -823,7 +825,7 @@ export default function DitorReport() {
         </div>
 
         <div className={reportSection !== "analysis" ? "dr-hidden" : ""}>
-          <OperationalReports />
+          {analysisOpened && <OperationalReports />}
         </div>
 
         {reportSection === "balance" && showColumnPicker && (

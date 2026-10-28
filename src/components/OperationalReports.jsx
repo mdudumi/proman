@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS } from "../lib/categoryIds";
+import { fetchAllEntries } from "../lib/ditorEntries";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SearchSelect from "./SearchSelect";
@@ -33,23 +34,36 @@ export default function OperationalReports() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloads, setReloads] = useState(0);
   const [savingClosing, setSavingClosing] = useState(false);
 
   useEffect(() => {
+    let current = true;
     async function load() {
       setLoading(true);
-      const [entries, buyerRows] = await Promise.all([
-        supabase.from("ditor").select("id,data,veprimi,sasia,shuma_leke,produkti:produkti_id(id,name),kategoria:kategoria_id(id,name),bleresi:bleresi_shitesi_id(id,name)").order("data", { ascending: true }).order("created_at", { ascending: true }),
-        supabase.from("kategoria_list").select("id,name").eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI).eq("is_active", true).order("name")
-      ]);
-      if (entries.error) console.error(entries.error);
-      if (buyerRows.error) console.error(buyerRows.error);
-      setRows(entries.data || []);
-      setBuyers(buyerRows.data || []);
-      setLoading(false);
+      setLoadError("");
+      try {
+        const [entries, buyerRows] = await Promise.all([
+          // Every entry, in batches: one request returns at most 1,000.
+          fetchAllEntries({}),
+          supabase.from("kategoria_list").select("id,name").eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI).eq("is_active", true).order("name")
+        ]);
+        if (buyerRows.error) console.error(buyerRows.error);
+        if (!current) return;
+        setRows(entries);
+        setBuyers(buyerRows.data || []);
+      } catch (err) {
+        console.error(err);
+        if (current) setLoadError(err.message || String(err));
+      }
+      if (current) setLoading(false);
     }
     load();
-  }, []);
+    return () => {
+      current = false;
+    };
+  }, [reloads]);
 
   const filtered = useMemo(() => rows.filter(row =>
     (!from || row.data >= from) && (!to || row.data <= to) && (!buyer || row.bleresi?.id === buyer)
@@ -229,7 +243,7 @@ export default function OperationalReports() {
       <button className={view === "ledger" ? "active" : ""} onClick={() => setView("ledger")}>Llogaritë</button>
     </div>
     <div className="op-filters"><label>Nga<DatePicker value={from} onChange={setFrom} clearable /></label><label>Në<DatePicker value={to} onChange={setTo} clearable /></label>{view === "ledger" && <label>Blerësi / Shitësi<SearchSelect value={buyer} onChange={setBuyer} options={buyers} placeholder="Të gjithë" /></label>}</div>
-    {loading ? <p>Duke ngarkuar…</p> : <><div className="op-metrics">{metrics.map(([label, value]) => <div className="op-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="op-table-wrap">
+    {loading ? <p>Duke ngarkuar…</p> : loadError ? <p className="op-error">Të dhënat nuk u ngarkuan: {loadError}<button onClick={() => setReloads(n => n + 1)}>Provo përsëri</button></p> : <><div className="op-metrics">{metrics.map(([label, value]) => <div className="op-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="op-table-wrap">
       {view === "daily" && <table className="op-table"><thead><tr><th>Data</th><th>Kategoria</th><th>Produkti</th><th>Sasi hyrje</th><th>Shuma hyrje</th><th>Kosto/njësi hyrje</th><th>Sasi dalje</th><th>Shuma dalje</th><th>Kosto/njësi dalje</th></tr></thead><tbody>{daily.map(row => <tr key={`${row.data}-${row.produkti}`}><td>{dateLabel(row.data)}</td><td>{row.kategoria}</td><td>{row.produkti}</td><td>{qty(row, row.hyrjeSasi)}</td><td>{money(row.hyrjeVlere)}</td><td>{unitCost(row, row.hyrjeVlere, row.hyrjeSasi)}</td><td>{qty(row, row.daljeSasi)}</td><td>{money(row.daljeVlere)}</td><td>{unitCost(row, row.daljeVlere, row.daljeSasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td></td><td>{money(dailySummary.hyrjeSasi)}</td><td>{money(dailySummary.hyrjeVlere)}</td><td>{money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlereMall / dailySummary.hyrjeSasi : 0)}</td><td>{money(dailySummary.daljeSasi)}</td><td>{money(dailySummary.daljeVlere)}</td><td>{money(dailySummary.daljeSasi ? dailySummary.daljeVlereMall / dailySummary.daljeSasi : 0)}</td></tr></tfoot></table>}
       {view === "stock" && <table className="op-table"><thead><tr><th>Kategoria</th><th>Produkti</th><th>Vlera hyrje</th><th>Vlera dalje</th><th>Sasia (kg) – Në gjendje</th><th>Vlera (lekë) – Në gjendje</th><th>Kosto/njësi në gjendje</th></tr></thead><tbody>{stock.map(row => <tr key={row.produkti}><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td>{qty(row, row.sasi)}</td><td>{money(row.vlere)}</td><td>{unitCost(row, row.vlere, row.sasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td>{money(stockSummary.hyrje)}</td><td>{money(stockSummary.dalje)}</td><td>{money(stockSummary.sasi)}</td><td>{money(stockSummary.vlere)}</td><td>{money(stockSummary.sasi ? stockSummary.vlereMall / stockSummary.sasi : 0)}</td></tr></tfoot></table>}
       {view === "ledger" && <table className="op-table"><thead><tr><th>Blerësi / Shitësi</th><th>Hyrje</th><th>Dalje / Pagesa</th><th>Detyrimi</th></tr></thead><tbody>{ledger.map(row => <tr key={row.bleresi}><td>{row.bleresi}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td className={row.detyrim < 0 ? "negative" : ""}>{money(row.detyrim)}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{money(ledgerSummary.hyrje)}</td><td>{money(ledgerSummary.dalje)}</td><td>{money(ledgerSummary.detyrim)}</td></tr></tfoot></table>}
