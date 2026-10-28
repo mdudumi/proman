@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import { entriesQuery, fetchAllEntries, isTjeterEntry } from "../lib/ditorEntries";
@@ -9,9 +9,15 @@ import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
 import ClearableSelect from "./ClearableSelect";
 import DitorTotals from "./DitorTotals";
+import { RefreshBar, Skeleton, SkeletonRows, Spinner } from "./Loading";
 import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
+
+// The placeholder for the first load: Data … Kosto/Njesi, then the edit and delete buttons' column.
+// A real row is 51px high, because of those buttons.
+const SKELETON_COLUMNS = ["date", "text", "text", "text", "text", "text", "num", "num", "num", ""];
+const ROW_HEIGHT = 51;
 
 // Tjetër entries are money movements: their quantity of 1 isn't kilograms, so they have no kg and no unit cost.
 const TJETER_HINT = "Tjetër: lëvizje parash, pa sasi në kg dhe pa kosto për njësi";
@@ -19,6 +25,11 @@ const TJETER_HINT = "Tjetër: lëvizje parash, pa sasi në kg dhe pa kosto për 
 export default function DitorTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  // False until the first answer arrives: until then there's nothing to show, so placeholders stand in.
+  const [hasLoaded, setHasLoaded] = useState(false);
+  // Numbers each request, so a slow answer to an older one can't replace a newer one's rows.
+  const lastRequest = useRef(0);
   const [editRow, setEditRow] = useState(null);
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(0);
@@ -84,10 +95,16 @@ export default function DitorTable({ refreshKey = 0 }) {
     : produkte;
 
   const load = useCallback(async () => {
+    const request = ++lastRequest.current;
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
+    setLoading(true);
     const { data, error, count } = await entriesQuery(filters, { count: "exact" }).range(from, to);
+    if (request !== lastRequest.current) return;
+
+    setLoading(false);
+    setHasLoaded(true);
 
     if (error) {
       console.error(error);
@@ -290,15 +307,19 @@ export default function DitorTable({ refreshKey = 0 }) {
 
       <div className="dtPager">
         <div className="dtPagerInfo">
-          Duke shfaqur <strong>{startRow}</strong> - <strong>{endRow}</strong> nga <strong>{totalRows}</strong> rekorde
+          {hasLoaded ? (
+            <>Duke shfaqur <strong>{startRow}</strong> - <strong>{endRow}</strong> nga <strong>{totalRows}</strong> rekorde</>
+          ) : (
+            <Skeleton width={210} height={14} />
+          )}
         </div>
 
         <div className="dtExportActions">
           <button className="dtExportBtn" onClick={() => runExport("excel")} disabled={!totalRows || Boolean(exporting)}>
-            {exporting === "excel" ? "Duke përgatitur…" : "Eksporto Excel"}
+            {exporting === "excel" ? <><Spinner />Duke përgatitur…</> : "Eksporto Excel"}
           </button>
           <button className="dtExportBtn" onClick={exportPdf} disabled={!totalRows || Boolean(exporting)}>
-            {exporting === "pdf" ? "Duke përgatitur…" : "Eksporto PDF"}
+            {exporting === "pdf" ? <><Spinner />Duke përgatitur…</> : "Eksporto PDF"}
           </button>
         </div>
 
@@ -341,6 +362,7 @@ export default function DitorTable({ refreshKey = 0 }) {
         </div>
       </div>
 
+      <RefreshBar active={loading && hasLoaded} />
       <div className="dtScroll">
         <table className="dtTable">
           <thead>
@@ -358,7 +380,9 @@ export default function DitorTable({ refreshKey = 0 }) {
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className={loading && hasLoaded ? "is-refreshing" : undefined} aria-busy={loading}>
+            {!hasLoaded && <SkeletonRows rows={10} columns={SKELETON_COLUMNS} rowHeight={ROW_HEIGHT} />}
+
             {error && (
               <tr>
                 <td colSpan="10" className="dtEmpty dtError">
@@ -370,7 +394,7 @@ export default function DitorTable({ refreshKey = 0 }) {
               </tr>
             )}
 
-            {!error && rows.length === 0 && (
+            {hasLoaded && !error && rows.length === 0 && (
               <tr>
                 <td colSpan="10" className="dtEmpty">
                   No records found

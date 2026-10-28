@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { VEPRIME, averagePerKg, fetchEntryTotals } from "../lib/ditorEntries";
+import { Skeleton } from "./Loading";
 
 // The dashboard table's columns: the label spans the first six (Data … Veprimi),
 // then Sasia, Shuma, Kosto/Njesi, and the column with the edit and delete buttons.
@@ -36,13 +37,24 @@ export default function DitorTotals({ filters, reloadKey }) {
 
   // Until the new totals arrive, the old ones stay on screen, dimmed.
   const stale = result?.key !== key;
+  const lines = VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi);
 
+  // Nothing to show yet: placeholders shaped like the totals rows.
   if (!result || (result.error && stale)) {
     return (
-      <tfoot className="dtTotals">
-        <tr>
-          <td colSpan={ALL_COLUMNS} className="dtTotalsNote">Duke llogaritur totalet…</td>
-        </tr>
+      <tfoot className="dtTotals" aria-busy="true">
+        {lines.map((v, i) => (
+          <tr key={v.value}>
+            <td colSpan={LABEL_COLUMNS}>
+              {i === 0 && <span className="sr-only" role="status">Duke llogaritur totalet…</span>}
+              <Skeleton width={190} />
+            </td>
+            <td className="num"><Skeleton width={80} /></td>
+            <td className="num"><Skeleton width={100} /></td>
+            <td className="num"><Skeleton width={50} /></td>
+            <td />
+          </tr>
+        ))}
       </tfoot>
     );
   }
@@ -61,8 +73,6 @@ export default function DitorTotals({ filters, reloadKey }) {
       </tfoot>
     );
   }
-
-  const lines = VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi);
 
   return (
     <tfoot className={`dtTotals${stale ? " is-stale" : ""}`}>
