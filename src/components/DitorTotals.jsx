@@ -78,11 +78,11 @@ export default function DitorTotals({ filters, reloadKey }) {
   return (
     <tfoot className={`dtTotals${stale ? " is-stale" : ""}`}>
       {totalsLines(result.totals, result.filters).map(line => (
-        <tr key={line.key}>
+        <tr key={line.key} className={line.difference ? "dtTotalsDiff" : undefined}>
           <td colSpan={LABEL_COLUMNS}>{line.label}</td>
-          <td className="num" title={TJETER_HINT}>{kg(line.sasia)}</td>
-          <td className="num">{money(line.shuma)}</td>
-          <td className="num" title={result.filters.produkti_id ? TJETER_HINT : PRODUCT_HINT}>
+          <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={TJETER_HINT}>{kg(line.sasia)}</td>
+          <td className={`num${line.shuma < 0 ? " neg" : ""}`}>{money(line.shuma)}</td>
+          <td className="num" title={line.difference ? undefined : result.filters.produkti_id ? TJETER_HINT : PRODUCT_HINT}>
             {line.average == null ? "—" : money(line.average)}
           </td>
           <td />

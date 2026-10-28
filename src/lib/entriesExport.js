@@ -91,6 +91,8 @@ export function exportEntriesPdf(rows, meta) {
   }
 
   const right = { halign: "right" };
+  // The Diferenca line is red where Dalje is larger.
+  const total = value => (value < 0 ? { ...right, textColor: [185, 28, 28] } : right);
   autoTable(doc, {
     startY: y,
     head: [HEADERS],
@@ -113,8 +115,8 @@ export function exportEntriesPdf(rows, meta) {
         : []),
       ...lines.map(line => [
         { content: line.label, colSpan: 6, styles: { halign: "left" } },
-        { content: kg(line.sasia), styles: right },
-        { content: money(line.shuma), styles: right },
+        { content: kg(line.sasia), styles: total(line.sasia) },
+        { content: money(line.shuma), styles: total(line.shuma) },
         { content: line.average == null ? "—" : money(line.average), styles: right }
       ])
     ],
@@ -204,7 +206,9 @@ export async function exportEntriesExcel(rows, meta) {
     const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia, line.shuma, line.average ?? "—"]);
     sheet.mergeCells(row.number, 1, row.number, 6);
     row.eachCell(cell => {
-      cell.font = { bold: true, color: { argb: "0F172A" } };
+      // The Diferenca line is red where Dalje is larger.
+      const negative = typeof cell.value === "number" && cell.value < 0;
+      cell.font = { bold: true, color: { argb: negative ? "B91C1C" : "0F172A" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "DBE9F6" } };
       cell.border = border("94A3B8");
     });

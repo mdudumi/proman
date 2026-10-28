@@ -86,9 +86,11 @@ export const averagePerKg = line => (line.sasia ? line.shumaMall / line.sasia : 
 // The totals lines under the dashboard table and in its exports: Hyrje and Dalje, or only the
 // action the Veprimi filter picks. An average price per kg only means something for one product
 // (across products it mixes, say, leaves and roots), so `average` is null unless one is picked.
+// With both lines, a third gives the difference, so nobody has to subtract by hand. Its kg are
+// goods only, like the lines; its lekë include Tjetër, like Llogaritë's Detyrimi = Hyrje − Dalje.
 export function totalsLines(totals, filters) {
   const oneProduct = Boolean(filters.produkti_id);
-  return VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi).map(v => {
+  const lines = VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi).map(v => {
     const line = totals[v.value];
     return {
       key: v.value,
@@ -98,6 +100,21 @@ export function totalsLines(totals, filters) {
       average: oneProduct ? averagePerKg(line) : null
     };
   });
+
+  if (lines.length === 2) {
+    const [hyrje, dalje] = lines;
+    lines.push({
+      key: "diff",
+      // A plain hyphen: the PDF's built-in font has no minus sign (−), and garbles the whole line.
+      label: "Diferenca (Hyrje - Dalje)",
+      // Rounded, and -0 made 0, so float noise can't show up as -0.00
+      sasia: Math.round((hyrje.sasia - dalje.sasia) * 1000) / 1000 || 0,
+      shuma: Math.round((hyrje.shuma - dalje.shuma) * 100) / 100 || 0,
+      average: null,
+      difference: true
+    });
+  }
+  return lines;
 }
 
 // The same totals as entryTotals, for every entry matching the filters, added up by the
