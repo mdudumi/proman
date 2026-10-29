@@ -10,6 +10,11 @@ const ALL_COLUMNS = 10;
 const TJETER_HINT = "Pa regjistrimet Tjetër: ato janë lëvizje parash, jo kg";
 // Without a product filter the totals mix products, so they have no cost per kg (totalsLines).
 const PRODUCT_HINT = "Kosto për kg shfaqet vetëm kur zgjidhet një produkt";
+// …and the difference line no kg.
+const DIFF_KG_HINT = "Diferenca në kg shfaqet vetëm kur zgjidhet një produkt";
+
+// The difference line's lekë: red for a loss (more bought than sold), green for a profit.
+const moneyClass = line => (line.shuma < 0 ? " neg" : line.difference && line.shuma > 0 ? " pos" : "");
 
 const money = v => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const kg = v => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
@@ -80,8 +85,10 @@ export default function DitorTotals({ filters, reloadKey }) {
       {totalsLines(result.totals, result.filters).map(line => (
         <tr key={line.key} className={line.difference ? "dtTotalsDiff" : undefined}>
           <td colSpan={LABEL_COLUMNS}>{line.label}</td>
-          <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={TJETER_HINT}>{kg(line.sasia)}</td>
-          <td className={`num${line.shuma < 0 ? " neg" : ""}`}>{money(line.shuma)}</td>
+          <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={line.sasia == null ? DIFF_KG_HINT : TJETER_HINT}>
+            {line.sasia == null ? "—" : kg(line.sasia)}
+          </td>
+          <td className={`num${moneyClass(line)}`}>{money(line.shuma)}</td>
           <td className="num" title={line.difference ? undefined : result.filters.produkti_id ? TJETER_HINT : PRODUCT_HINT}>
             {line.average == null ? "—" : money(line.average)}
           </td>

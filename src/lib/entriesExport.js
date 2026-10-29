@@ -14,8 +14,12 @@ const TITLE = "TË DHËNA TË REGJISTRUARA";
 const HEADERS = ["Data", "Kategoria", "Produkti", "Monedha", "Blerësi/Shitësi", "Veprimi", "Sasia (kg)", "Shuma (lekë)", "Kosto/kg"];
 const TJETER_NOTE =
   "Regjistrimet e kategorisë Tjetër (lëvizje parash) llogariten me shumën në lekë, pa sasi (kg) dhe pa kosto për kg.";
-// Without a product filter the totals mix products, so they have no cost per kg (totalsLines).
-const AVERAGE_NOTE = "Kosto/kg në totale shfaqet vetëm kur filtrohet sipas një produkti.";
+// Without a product filter the totals mix products, so they have no cost per kg, and the
+// difference line no kg (totalsLines).
+const productNote = lines =>
+  lines.some(line => line.difference)
+    ? "Kosto/kg dhe diferenca në kg shfaqen në totale vetëm kur filtrohet sipas një produkti."
+    : "Kosto/kg në totale shfaqet vetëm kur filtrohet sipas një produkti.";
 
 const count = n => n.toLocaleString("en-US");
 const money = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -63,7 +67,7 @@ export function exportEntriesPdf(rows, meta) {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.4);
-  const notes = [meta.filtersText, rows.some(isTjeterEntry) ? TJETER_NOTE : "", meta.filters.produkti_id ? "" : AVERAGE_NOTE]
+  const notes = [meta.filtersText, rows.some(isTjeterEntry) ? TJETER_NOTE : "", meta.filters.produkti_id ? "" : productNote(lines)]
     .filter(Boolean)
     .flatMap(text => doc.splitTextToSize(text, box.width));
   y += 5;
@@ -91,8 +95,10 @@ export function exportEntriesPdf(rows, meta) {
   }
 
   const right = { halign: "right" };
-  // The Diferenca line is red where Dalje is larger.
+  // The Diferenca line is red where Hyrje is larger: more spent than earned.
   const total = value => (value < 0 ? { ...right, textColor: [185, 28, 28] } : right);
+  // …and its lekë green for a profit.
+  const totalMoney = line => (line.difference && line.shuma > 0 ? { ...right, textColor: [21, 128, 61] } : total(line.shuma));
   autoTable(doc, {
     startY: y,
     head: [HEADERS],
@@ -115,8 +121,8 @@ export function exportEntriesPdf(rows, meta) {
         : []),
       ...lines.map(line => [
         { content: line.label, colSpan: 6, styles: { halign: "left" } },
-        { content: kg(line.sasia), styles: total(line.sasia) },
-        { content: money(line.shuma), styles: total(line.shuma) },
+        { content: line.sasia == null ? "—" : kg(line.sasia), styles: total(line.sasia) },
+        { content: money(line.shuma), styles: totalMoney(line) },
         { content: line.average == null ? "—" : money(line.average), styles: right }
       ])
     ],
@@ -170,7 +176,7 @@ export async function exportEntriesExcel(rows, meta) {
     `Periudha: ${meta.period}   |   Rreshta: ${count(rows.length)}   |   Gjeneruar: ${new Date().toLocaleString("sq-AL")}`,
     meta.filtersText,
     ...(rows.some(isTjeterEntry) ? [TJETER_NOTE] : []),
-    ...(meta.filters.produkti_id ? [] : [AVERAGE_NOTE])
+    ...(meta.filters.produkti_id ? [] : [productNote(lines)])
   ];
   info.forEach((text, i) => {
     const row = sheet.addRow([text]);
@@ -203,12 +209,14 @@ export async function exportEntriesExcel(rows, meta) {
 
   sheet.addRow([]);
   for (const line of lines) {
-    const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia, line.shuma, line.average ?? "—"]);
+    const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia ?? "—", line.shuma, line.average ?? "—"]);
     sheet.mergeCells(row.number, 1, row.number, 6);
     row.eachCell(cell => {
-      // The Diferenca line is red where Dalje is larger.
+      // The Diferenca line is red where Hyrje is larger: more spent than earned, and its lekë
+      // (column 8) green for a profit.
       const negative = typeof cell.value === "number" && cell.value < 0;
-      cell.font = { bold: true, color: { argb: negative ? "B91C1C" : "0F172A" } };
+      const profit = line.difference && cell.col === 8 && cell.value > 0;
+      cell.font = { bold: true, color: { argb: negative ? "B91C1C" : profit ? "15803D" : "0F172A" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "DBE9F6" } };
       cell.border = border("94A3B8");
     });
