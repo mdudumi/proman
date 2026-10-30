@@ -16,10 +16,12 @@ const TJETER_NOTE =
   "Regjistrimet e kategorisë Tjetër (lëvizje parash) llogariten me shumën në lekë, pa sasi (kg) dhe pa kosto për kg.";
 // Without a product filter the totals mix products, so they have no cost per kg, and the
 // difference line no kg (totalsLines).
-const productNote = lines =>
-  lines.some(line => line.difference)
-    ? "Kosto/kg dhe diferenca në kg shfaqen në totale vetëm kur filtrohet sipas një produkti."
-    : "Kosto/kg në totale shfaqet vetëm kur filtrohet sipas një produkti.";
+function productNote(lines, selected) {
+  const when = selected ? "të zgjedhurat janë të një produkti" : "filtrohet sipas një produkti";
+  return lines.some(line => line.difference)
+    ? `Kosto/kg dhe diferenca në kg shfaqen në totale vetëm kur ${when}.`
+    : `Kosto/kg në totale shfaqet vetëm kur ${when}.`;
+}
 
 const count = n => n.toLocaleString("en-US");
 const money = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -42,13 +44,14 @@ function textCells(row) {
 }
 
 /**
- * @param rows  every entry matching the filters, oldest first
- * @param meta  { period, filtersText, filters, fileBase }
+ * @param rows  every entry matching the filters, or the selected ones, oldest first
+ * @param meta  { period, filtersText, filters, fileBase, selected }: `selected` when the rows are
+ *              the ones selected in the table, so the totals say so
  */
 export function exportEntriesPdf(rows, meta) {
   const capped = rows.length > PDF_ROW_LIMIT;
   const printed = capped ? rows.slice(-PDF_ROW_LIMIT) : rows;
-  const lines = totalsLines(entryTotals(rows), meta.filters);
+  const lines = totalsLines(entryTotals(rows), meta.filters, { selected: meta.selected });
 
   const doc = new jsPDF("l", "mm", "a4");
   const box = contentBox(doc);
@@ -67,7 +70,7 @@ export function exportEntriesPdf(rows, meta) {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.4);
-  const notes = [meta.filtersText, rows.some(isTjeterEntry) ? TJETER_NOTE : "", meta.filters.produkti_id ? "" : productNote(lines)]
+  const notes = [meta.filtersText, rows.some(isTjeterEntry) ? TJETER_NOTE : "", meta.filters.produkti_id ? "" : productNote(lines, meta.selected)]
     .filter(Boolean)
     .flatMap(text => doc.splitTextToSize(text, box.width));
   y += 5;
@@ -149,11 +152,11 @@ export function exportEntriesPdf(rows, meta) {
 }
 
 /**
- * @param rows  every entry matching the filters, oldest first
- * @param meta  { period, filtersText, filters, fileBase }
+ * @param rows  every entry matching the filters, or the selected ones, oldest first
+ * @param meta  as for exportEntriesPdf
  */
 export async function exportEntriesExcel(rows, meta) {
-  const lines = totalsLines(entryTotals(rows), meta.filters);
+  const lines = totalsLines(entryTotals(rows), meta.filters, { selected: meta.selected });
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Të dhëna");
   const columns = HEADERS.length;
@@ -176,7 +179,7 @@ export async function exportEntriesExcel(rows, meta) {
     `Periudha: ${meta.period}   |   Rreshta: ${count(rows.length)}   |   Gjeneruar: ${new Date().toLocaleString("sq-AL")}`,
     meta.filtersText,
     ...(rows.some(isTjeterEntry) ? [TJETER_NOTE] : []),
-    ...(meta.filters.produkti_id ? [] : [productNote(lines)])
+    ...(meta.filters.produkti_id ? [] : [productNote(lines, meta.selected)])
   ];
   info.forEach((text, i) => {
     const row = sheet.addRow([text]);
