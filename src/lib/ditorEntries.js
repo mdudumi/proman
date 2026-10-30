@@ -9,6 +9,7 @@ const ENTRY_SELECT = `
   sasia,
   shuma_leke,
   kosto_per_njesi,
+  created_at,
   kategoria:kategoria_id(id,name),
   produkti:produkti_id(id,name),
   monedha:monedha_id(id,name),
@@ -86,15 +87,20 @@ export const averagePerKg = line => (line.sasia ? line.shumaMall / line.sasia : 
 // The totals lines under the dashboard table and in its exports: Hyrje and Dalje, or only the
 // action the Veprimi filter picks. An average price per kg only means something for one product
 // (across products it mixes, say, leaves and roots), so `average` is null unless one is picked.
-// With both lines, a third gives the difference, so nobody has to subtract by hand. Its kg are
-// goods only, like the lines; its lekë include Tjetër, like Llogaritë's Detyrimi = Hyrje − Dalje.
-export function totalsLines(totals, filters) {
+// With both lines, a third gives the difference, so nobody has to subtract by hand. It's Dalje
+// minus Hyrje, from the owner's side: Hyrje is stock bought (money spent), Dalje stock sold
+// (money earned), so a negative difference means more was spent than earned. Its lekë include
+// Tjetër. Its kg, like the average, are null unless one product is picked: kg across many
+// products says nothing useful. With `selected`, the labels say the entries are the selected ones.
+export function totalsLines(totals, filters, { selected = false } = {}) {
   const oneProduct = Boolean(filters.produkti_id);
   const lines = VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi).map(v => {
     const line = totals[v.value];
+    const one = line.count === 1;
+    const entries = `${line.count.toLocaleString("en-US")} ${one ? "regjistrim" : "regjistrime"}${selected ? (one ? " i zgjedhur" : " të zgjedhura") : ""}`;
     return {
       key: v.value,
-      label: `Totali ${v.label} (${line.count.toLocaleString("en-US")} regjistrime)`,
+      label: `Totali ${v.label} (${entries})`,
       sasia: line.sasia,
       shuma: line.shuma,
       average: oneProduct ? averagePerKg(line) : null
@@ -106,16 +112,30 @@ export function totalsLines(totals, filters) {
     lines.push({
       key: "diff",
       // A plain hyphen: the PDF's built-in font has no minus sign (−), and garbles the whole line.
-      label: "Diferenca (Hyrje - Dalje)",
+      label: "Diferenca (Dalje - Hyrje)",
       // Rounded, and -0 made 0, so float noise can't show up as -0.00
-      sasia: Math.round((hyrje.sasia - dalje.sasia) * 1000) / 1000 || 0,
-      shuma: Math.round((hyrje.shuma - dalje.shuma) * 100) / 100 || 0,
+      sasia: oneProduct ? Math.round((dalje.sasia - hyrje.sasia) * 1000) / 1000 || 0 : null,
+      shuma: Math.round((dalje.shuma - hyrje.shuma) * 100) / 100 || 0,
       average: null,
       difference: true
     });
   }
   return lines;
 }
+
+// The filters that the totals of selected rows go by: the dashboard's, with the product only when
+// every selected row is the same one, so Kosto/kg and the kg difference follow the same rule.
+export function selectionFilters(rows, filters) {
+  const produktiId = rows[0]?.produkti?.id;
+  const oneProduct = rows.length > 0 && rows.every(row => row.produkti?.id === produktiId);
+  return { ...filters, produkti_id: oneProduct ? produktiId : "" };
+}
+
+// The dashboard table's order, for entries already loaded: oldest first, as entriesQuery sorts.
+export const byEntryOrder = (a, b) =>
+  String(a.data ?? "").localeCompare(String(b.data ?? "")) ||
+  String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")) ||
+  String(a.id ?? "").localeCompare(String(b.id ?? ""));
 
 // The same totals as entryTotals, for every entry matching the filters, added up by the
 // database (rpc_ditor_totals, supabase/migrations/20261026_ditor_totals.sql) instead of

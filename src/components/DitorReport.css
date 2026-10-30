@@ -367,6 +367,19 @@ body {
   line-height: 1.5;
 }
 
+/* The table shows only the first 1,000 matching entries; the totals cover them all. */
+.dr-cut-note {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d97706;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 /* TABLE */
 .dr-table-wrap {
   width: 100%;

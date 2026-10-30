@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
-import { entriesQuery, fetchAllEntries, isTjeterEntry } from "../lib/ditorEntries";
+import { byEntryOrder, entriesQuery, fetchAllEntries, isTjeterEntry, selectionFilters } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
@@ -37,6 +37,13 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [pdfPrompt, setPdfPrompt] = useState(false);
   // Counts edits and deletes, so the totals rows reload after each one.
   const [changes, setChanges] = useState(0);
+  // The rows clicked to see their own totals, by id. Kept across pages, cleared with the filters.
+  const [selected, setSelected] = useState({});
+  // The entry just edited: if it no longer shows on this page, it's no longer selected either.
+  const editedId = useRef(null);
+  // The row just clicked, and the box the rows scroll in, to keep that row out from under the totals.
+  const toggledId = useRef(null);
+  const scrollRef = useRef(null);
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -115,6 +122,9 @@ export default function DitorTable({ refreshKey = 0 }) {
     setError("");
     setRows(data || []);
     setTotalRows(count || 0);
+    const edited = editedId.current;
+    editedId.current = null;
+    setSelected(prev => syncSelected(prev, data || [], edited));
   }, [filters, page]);
 
   // refreshKey changes after an entry is added, so the new entry shows up.
@@ -132,6 +142,7 @@ export default function DitorTable({ refreshKey = 0 }) {
     }
 
     setChanges(n => n + 1);
+    setSelected(prev => withoutRow(prev, id));
     const newTotal = Math.max(totalRows - 1, 0);
     const maxPage = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
 
@@ -144,6 +155,7 @@ export default function DitorTable({ refreshKey = 0 }) {
 
   function setF(name, value) {
     setPage(1);
+    setSelected({});
     setFilters(prev => {
       if (name === "produkti_id") {
         const produkti = produkte.find(p => String(p.id) === String(value));
@@ -161,6 +173,7 @@ export default function DitorTable({ refreshKey = 0 }) {
 
   function resetFilters() {
     setPage(1);
+    setSelected({});
     setFilters({
       fromDate: "",
       toDate: "",
@@ -185,18 +198,32 @@ export default function DitorTable({ refreshKey = 0 }) {
     return `Filtrat: ${parts.length ? parts.join(" | ") : "asnjë, të gjitha regjistrimet"}`;
   }
 
-  // Exports fetch every matching entry, not only the page on screen.
+  // With rows selected, the exports have only those, from every page. Otherwise they fetch every
+  // matching entry, not only the page on screen.
   async function runExport(kind) {
     setPdfPrompt(false);
     setExporting(kind);
     try {
-      const entries = await fetchAllEntries(filters);
-      const meta = {
-        period: `${filters.fromDate ? formatDate(filters.fromDate) : "Fillimi"} – ${filters.toDate ? formatDate(filters.toDate) : "Sot"}`,
-        filtersText: describeFilters(),
-        filters,
-        fileBase: `te-dhenat_${filters.fromDate || "fillimi"}_${filters.toDate || "sot"}`
-      };
+      const n = selectedRows.length;
+      let entries, meta;
+      if (n) {
+        entries = [...selectedRows].sort(byEntryOrder);
+        meta = {
+          period: `${formatDate(entries[0].data)} – ${formatDate(entries[n - 1].data)}`,
+          filtersText: `Vetëm ${n} ${n === 1 ? "regjistrimi i zgjedhur" : "regjistrimet e zgjedhura"} | ${describeFilters()}`,
+          filters: selectionFilters(entries, filters),
+          fileBase: `te-dhenat_${n}-te-zgjedhura`,
+          selected: true
+        };
+      } else {
+        entries = await fetchAllEntries(filters);
+        meta = {
+          period: `${filters.fromDate ? formatDate(filters.fromDate) : "Fillimi"} – ${filters.toDate ? formatDate(filters.toDate) : "Sot"}`,
+          filtersText: describeFilters(),
+          filters,
+          fileBase: `te-dhenat_${filters.fromDate || "fillimi"}_${filters.toDate || "sot"}`
+        };
+      }
       if (kind === "excel") await exportEntriesExcel(entries, meta);
       else exportEntriesPdf(entries, meta);
     } catch (err) {
@@ -209,12 +236,49 @@ export default function DitorTable({ refreshKey = 0 }) {
 
   // Over the PDF limit, ask first: the PDF prints only the latest rows.
   function exportPdf() {
-    if (totalRows > PDF_ROW_LIMIT) setPdfPrompt(true);
+    if (exportCount > PDF_ROW_LIMIT) setPdfPrompt(true);
     else runExport("pdf");
   }
 
-  // The totals rows show only while at least one filter is set.
+  // The totals rows show only while at least one filter is set, or rows are selected.
   const hasFilters = Object.values(filters).some(Boolean);
+  const selectedRows = useMemo(() => Object.values(selected), [selected]);
+  const offPage = selectedRows.filter(row => !rows.some(r => r.id === row.id)).length;
+  // How many rows the exports will have, and what their buttons say.
+  const exportCount = selectedRows.length || totalRows;
+  const exportScope = selectedRows.length ? ` (${selectedRows.length} të zgjedhura)` : "";
+
+  function toggleRow(row) {
+    toggledId.current = row.id;
+    setSelected(prev => (prev[row.id] ? withoutRow(prev, row.id) : { ...prev, [row.id]: row }));
+  }
+
+  // The totals appear at the bottom of the box when the first row is selected, over the last
+  // rows in view: if they now cover the row just clicked, scroll it back up above them.
+  useLayoutEffect(() => {
+    const id = toggledId.current;
+    toggledId.current = null;
+    const box = scrollRef.current;
+    const row = id && box?.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+    const totals = box?.querySelector("tfoot");
+    if (!row || !totals) return;
+    const covered = row.getBoundingClientRect().bottom - totals.getBoundingClientRect().top;
+    if (covered > 0) box.scrollTop += covered;
+  }, [selected]);
+
+  function onRowClick(event, row) {
+    // Not from the edit and delete buttons, nor when text was dragged over to copy it.
+    if (event.target.closest("button") || window.getSelection()?.toString()) return;
+    toggleRow(row);
+  }
+
+  function onRowKeyDown(event, row) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Escape") setSelected({});
+    if (event.key !== " " && event.key !== "Enter") return;
+    event.preventDefault();
+    toggleRow(row);
+  }
 
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const startRow = totalRows === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -308,18 +372,29 @@ export default function DitorTable({ refreshKey = 0 }) {
       <div className="dtPager">
         <div className="dtPagerInfo">
           {hasLoaded ? (
-            <>Duke shfaqur <strong>{startRow}</strong> - <strong>{endRow}</strong> nga <strong>{totalRows}</strong> rekorde</>
+            <span>Duke shfaqur <strong>{startRow}</strong> - <strong>{endRow}</strong> nga <strong>{totalRows}</strong> rekorde</span>
           ) : (
             <Skeleton width={210} height={14} />
+          )}
+          {selectedRows.length > 0 && (
+            <span className="dtSelectionInfo" role="status">
+              <span>
+                <strong>{selectedRows.length}</strong> {selectedRows.length === 1 ? "i zgjedhur" : "të zgjedhura"}
+                {offPage > 0 && `, ${offPage} në faqe të tjera`}
+              </span>
+              <button className="dtSelectionClear" onClick={() => setSelected({})}>
+                Pastro zgjedhjen
+              </button>
+            </span>
           )}
         </div>
 
         <div className="dtExportActions">
-          <button className="dtExportBtn" onClick={() => runExport("excel")} disabled={!totalRows || Boolean(exporting)}>
-            {exporting === "excel" ? <><Spinner />Duke përgatitur…</> : "Eksporto Excel"}
+          <button className="dtExportBtn" onClick={() => runExport("excel")} disabled={!exportCount || Boolean(exporting)}>
+            {exporting === "excel" ? <><Spinner />Duke përgatitur…</> : `Eksporto Excel${exportScope}`}
           </button>
-          <button className="dtExportBtn" onClick={exportPdf} disabled={!totalRows || Boolean(exporting)}>
-            {exporting === "pdf" ? <><Spinner />Duke përgatitur…</> : "Eksporto PDF"}
+          <button className="dtExportBtn" onClick={exportPdf} disabled={!exportCount || Boolean(exporting)}>
+            {exporting === "pdf" ? <><Spinner />Duke përgatitur…</> : `Eksporto PDF${exportScope}`}
           </button>
         </div>
 
@@ -363,7 +438,7 @@ export default function DitorTable({ refreshKey = 0 }) {
       </div>
 
       <RefreshBar active={loading && hasLoaded} />
-      <div className="dtScroll">
+      <div className="dtScroll" ref={scrollRef}>
         <table className="dtTable">
           <thead>
             <tr>
@@ -403,7 +478,15 @@ export default function DitorTable({ refreshKey = 0 }) {
             )}
 
             {!error && rows.map(r => (
-              <tr key={r.id}>
+              <tr
+                key={r.id}
+                data-id={r.id}
+                className={selected[r.id] ? "is-selected" : undefined}
+                aria-selected={Boolean(selected[r.id])}
+                tabIndex={0}
+                onClick={event => onRowClick(event, r)}
+                onKeyDown={event => onRowKeyDown(event, r)}
+              >
                 <td title={r.data}>{formatDate(r.data)}</td>
                 <td title={r.kategoria?.name || ""}>{r.kategoria?.name}</td>
                 <td title={r.produkti?.name || ""}>{r.produkti?.name}</td>
@@ -429,9 +512,12 @@ export default function DitorTable({ refreshKey = 0 }) {
             ))}
           </tbody>
 
-          {hasFilters && !error && totalRows > 0 && (
-            <DitorTotals filters={filters} reloadKey={`${refreshKey}.${changes}`} />
-          )}
+          <DitorTotals
+            filters={filters}
+            reloadKey={`${refreshKey}.${changes}`}
+            showFilterTotals={hasFilters && !error && totalRows > 0}
+            selectedRows={selectedRows}
+          />
         </table>
       </div>
 
@@ -439,7 +525,7 @@ export default function DitorTable({ refreshKey = 0 }) {
         <Modal title="Eksporti në PDF" onClose={() => setPdfPrompt(false)} className="modal--small">
           <p className="dtDialogText">
             Ky PDF do të përfshijë <strong>{PDF_ROW_LIMIT.toLocaleString("en-US")}</strong> regjistrimet më të fundit
-            nga <strong>{totalRows.toLocaleString("en-US")}</strong> që përputhen me filtrat. Totalet në fund do të
+            nga <strong>{exportCount.toLocaleString("en-US")}</strong> {selectedRows.length ? "të zgjedhurat" : "që përputhen me filtrat"}. Totalet në fund do të
             llogariten për të gjitha regjistrimet.
           </p>
           <p className="dtDialogText">
@@ -469,6 +555,7 @@ export default function DitorTable({ refreshKey = 0 }) {
               shuma_leke: editRow.shuma_leke
             }}
             onSaved={() => {
+              editedId.current = editRow.id;
               setEditRow(null);
               setChanges(n => n + 1);
               load();
@@ -479,6 +566,23 @@ export default function DitorTable({ refreshKey = 0 }) {
       )}
     </div>
   );
+}
+
+// `selected` without one row.
+function withoutRow(selected, id) {
+  if (!selected[id]) return selected;
+  const next = { ...selected };
+  delete next[id];
+  return next;
+}
+
+// After a reload, selected rows on the page take their latest values (an edit changes them),
+// and the edited entry is no longer selected if it left the page.
+function syncSelected(selected, rows, editedId) {
+  if (!Object.keys(selected).length) return selected;
+  const next = { ...selected };
+  for (const row of rows) if (next[row.id]) next[row.id] = row;
+  return editedId && !rows.some(row => row.id === editedId) ? withoutRow(next, editedId) : next;
 }
 
 function formatDate(value) {

@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { fetchBalanceTotals } from "../lib/bilanci";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "../lib/pdfPage";
 import jsPDF from "jspdf";
@@ -47,12 +48,29 @@ const formatDate = value => {
   return year && month && day ? `${day}.${month}.${year}` : value;
 };
 
+const count = n => n.toLocaleString("en-US");
+
+const NO_TOTALS = {
+  opening_sasia: 0,
+  sasia_hyrje: 0,
+  sasia_dalje: 0,
+  sasia_mbetur: 0,
+  opening_shuma: 0,
+  shuma_hyrje: 0,
+  shuma_dalje: 0,
+  shuma_mbetur: 0
+};
+
 export default function DitorReport() {
   const navigate = useNavigate();
 
   const [rows, setRows] = useState([]);
+  // GRAND TOTAL and the summary cards, for every matching entry (only the first 1,000 rows arrive).
+  const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Only the latest request fills the report; an older one that answers late is dropped.
+  const lastRequest = useRef(0);
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -68,7 +86,7 @@ export default function DitorReport() {
   const [selectedColumns, setSelectedColumns] = useState(DEFAULT_COLUMNS);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [reportSection, setReportSection] = useState("balance");
-  // Analizat downloads every entry, so it loads the first time its tab is opened, then stays loaded.
+  // Analizat loads the first time its tab is opened, then stays loaded.
   const [analysisOpened, setAnalysisOpened] = useState(false);
 
   const [kategori, setKategori] = useState([]);
@@ -138,6 +156,7 @@ export default function DitorReport() {
   }
 
   async function loadReport() {
+    const request = ++lastRequest.current;
     setLoading(true);
     setError("");
 
@@ -152,12 +171,17 @@ export default function DitorReport() {
     };
 
     try {
-      const { data, error } = await supabase.rpc("rpc_ditor_daily_report", params);
+      const [{ data, error }, balanceTotals] = await Promise.all([
+        supabase.rpc("rpc_ditor_daily_report", params),
+        fetchBalanceTotals(filters)
+      ]);
+      if (request !== lastRequest.current) return;
 
       if (error) {
         console.error("RPC error:", error);
         setError(error.message);
         setRows([]);
+        setBalance(null);
         return;
       }
 
@@ -168,12 +192,15 @@ export default function DitorReport() {
       });
 
       setRows(sorted);
+      setBalance(balanceTotals);
     } catch (err) {
+      if (request !== lastRequest.current) return;
       console.error("Report load exception:", err);
       setError(err.message || String(err));
       setRows([]);
+      setBalance(null);
     } finally {
-      setLoading(false);
+      if (request === lastRequest.current) setLoading(false);
     }
   }
 
@@ -205,6 +232,15 @@ export default function DitorReport() {
     });
   }
 
+  // Supabase sends at most 1,000 rows, the oldest: when more entries match, the table shows only
+  // some of them, while GRAND TOTAL and the cards still cover every one.
+  const cut = Boolean(balance) && rows.length < balance.count;
+  const cutNote = cut
+    ? `Tabela tregon ${count(rows.length)} regjistrimet e para nga ${count(balance.count)} që përputhen me filtrat; totalet llogariten për të gjitha.`
+    : "";
+  const rowsCount = cut ? `${count(rows.length)} nga ${count(balance.count)}` : count(rows.length);
+  const rowsLabel = `Rreshta: ${rowsCount}`;
+
   const reportPeriod = useMemo(() => {
     if (!rows.length) {
       return {
@@ -216,23 +252,13 @@ export default function DitorReport() {
     const dates = rows.map(r => r.data).filter(Boolean).sort();
     return {
       from: dates[0] || filters.fromDate || "—",
-      to: dates[dates.length - 1] || filters.toDate || "—"
+      // A cut table stops before the period does, so its last row doesn't give the end date.
+      to: (cut ? "" : dates[dates.length - 1]) || filters.toDate || "—"
     };
-  }, [rows, filters.fromDate, filters.toDate]);
+  }, [rows, filters.fromDate, filters.toDate, cut]);
 
   function calculateTotals(data) {
-    if (!data.length) {
-      return {
-        opening_sasia: 0,
-        sasia_hyrje: 0,
-        sasia_dalje: 0,
-        sasia_mbetur: 0,
-        opening_shuma: 0,
-        shuma_hyrje: 0,
-        shuma_dalje: 0,
-        shuma_mbetur: 0
-      };
-    }
+    if (!data.length) return NO_TOTALS;
 
     const sorted = [...data].sort((a, b) => {
       const byDate = String(a.data ?? "").localeCompare(String(b.data ?? ""));
@@ -255,7 +281,8 @@ export default function DitorReport() {
     };
   }
 
-  const totals = useMemo(() => calculateTotals(rows), [rows]);
+  // From the database, not the rows on screen. The group subtotals still add up the rows.
+  const totals = balance ?? NO_TOTALS;
 
   const topSummary = useMemo(() => {
     return {
@@ -397,14 +424,16 @@ export default function DitorReport() {
     const pdfTitle = "RAPORTI I GJENDJES DHE BILANCIT";
     const generatedAt = new Date().toLocaleString("sq-AL");
     doc.setFontSize(7.4);
-    const filtersText = doc.splitTextToSize(getFilterSummaryText(), box.width);
+    const filtersText = [getFilterSummaryText(), cut ? `Kujdes: ${cutNote}` : ""]
+      .filter(Boolean)
+      .flatMap(text => doc.splitTextToSize(text, box.width));
 
     const bandBottom = drawTitleBand(doc, pdfTitle);
     doc.setTextColor(51, 65, 85);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text(`Periudha: ${formatDate(reportPeriod.from)} – ${formatDate(reportPeriod.to)}`, box.left, bandBottom + 6);
-    doc.text(`Rreshta: ${rows.length}`, box.left + 135, bandBottom + 6);
+    doc.text(rowsLabel, box.left + 135, bandBottom + 6);
     doc.text(`Gjeneruar: ${generatedAt}`, box.right, bandBottom + 6, { align: "right" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.4);
@@ -565,7 +594,7 @@ export default function DitorReport() {
     worksheet.getCell("A1").font = { bold: true, size: 16, color: { argb: "0F172A" } };
     worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
 
-    worksheet.addRow([`Periudha: ${reportPeriod.from} - ${reportPeriod.to}`]);
+    worksheet.addRow([`Periudha: ${reportPeriod.from} - ${reportPeriod.to}   |   ${rowsLabel}${cut ? `   |   Kujdes: ${cutNote}` : ""}`]);
     mergeAcross(2);
     worksheet.getCell("A2").font = { bold: true, size: 11, color: { argb: "334155" } };
 
@@ -904,7 +933,7 @@ export default function DitorReport() {
               <div className="dr-section-title">Rezultatet</div>
               <div className="dr-meta">
                 <span><b>Periudha:</b> {reportPeriod.from} - {reportPeriod.to}</span>
-                <span><b>Rreshta:</b> {rows.length}</span>
+                <span><b>Rreshta:</b> {rowsCount}</span>
                 <span><b>Grupe:</b> {groupedRows.length}</span>
               </div>
             </div>
@@ -926,6 +955,7 @@ export default function DitorReport() {
           </div>
 
           <div className="dr-filter-line">{getFilterSummaryText()}</div>
+          {cut && !loading && <div className="dr-cut-note" role="note">{cutNote}</div>}
 
           <div className="dr-table-wrap ultra">
             <table className="dr-table ultra">

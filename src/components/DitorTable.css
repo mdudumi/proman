@@ -135,6 +135,28 @@
   background:rgba(255,255,255,.04);
 }
 
+/* A row is clicked to select it; the selected ones take the blue of the totals below */
+.dtTable tbody tr[aria-selected]{
+  cursor:pointer;
+}
+
+.dtTable tbody tr[aria-selected]:focus-visible{
+  outline:2px solid #6ea8ff;
+  outline-offset:-2px;
+}
+
+.dtTable tbody tr.is-selected td{
+  background:rgba(110,168,255,.16);
+}
+
+.dtTable tbody tr.is-selected:hover td{
+  background:rgba(110,168,255,.22);
+}
+
+.dtTable tbody tr.is-selected td:first-child{
+  box-shadow:inset 3px 0 0 #6ea8ff;
+}
+
 .num{
   text-align:right;
   font-variant-numeric:tabular-nums;
@@ -210,13 +232,18 @@
   padding-left:0;
 }
 
-/* Diferenca (Hyrje − Dalje): set apart from the two totals above it, red when Dalje is larger */
+/* Diferenca (Dalje − Hyrje): set apart from the two totals above it, red when Hyrje is larger */
 .dtTotals tr.dtTotalsDiff td{
   border-top-style:dashed;
 }
 
 .dtTotals td.neg{
   color:#ff8a8a;
+}
+
+/* a profit on the difference line */
+.dtTotals td.pos{
+  color:#6ee7a0;
 }
 
 /* new totals are on their way */
@@ -249,8 +276,38 @@
 }
 
 .dtPagerInfo{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  row-gap:6px;
   color:var(--text);
   font-size:13px;
+}
+
+/* how many rows are selected, next to the row count */
+.dtSelectionInfo{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-left:12px;
+  padding-left:12px;
+  border-left:1px solid var(--border);
+}
+
+.dtSelectionClear{
+  height:28px;
+  padding:0 10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.10);
+  color:var(--text);
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.dtSelectionClear:hover{
+  background:rgba(255,255,255,.14);
 }
 
 .dtPagerActions{
