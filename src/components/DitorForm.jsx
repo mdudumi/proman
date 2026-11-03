@@ -1,6 +1,7 @@
 import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
+import { formatMoney } from "../lib/format";
 import SearchSelect from "./SearchSelect";
 import AmountInput from "./AmountInput";
 import DatePicker from "./DatePicker";
@@ -119,7 +120,7 @@ const DitorForm = forwardRef(function DitorForm(
 
   // 👉 calculated field
   const cmimi_njesi =
-    sasia > 0 ? (shuma_leke / sasia).toFixed(2) : "";
+    sasia > 0 ? formatMoney(shuma_leke / sasia) : "";
 
   const isValid =
     form.kategoria_id &&
@@ -249,11 +250,9 @@ const DitorForm = forwardRef(function DitorForm(
 
           <div className="field">
             <label>{isTjeter ? "Sasia (nuk llogaritet si kg)" : "Sasia"}</label>
-            <input
-              type="number"
+            <AmountInput
               value={form.sasia}
-              onChange={e => setField("sasia", e.target.value)}
-              step="any"
+              onChange={value => setField("sasia", value)}
               readOnly={isTjeter}
               className={isTjeter ? "input-readonly" : undefined}
             />
@@ -271,7 +270,7 @@ const DitorForm = forwardRef(function DitorForm(
                 Çmimi për njësi (ALL)
               </label>
               <input
-                type="number"
+                type="text"
                 value={cmimi_njesi}
                 readOnly
                 className="input-readonly"
