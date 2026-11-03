@@ -7,7 +7,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
-import { RefreshBar, Spinner } from "./Loading";
+import { RefreshBar, Skeleton, SkeletonRows, Spinner } from "./Loading";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "../lib/pdfPage";
 import "./OperationalReports.css";
 
@@ -29,9 +29,21 @@ const TJETER_NOTES = {
 const NO_DAILY_TOTALS = { hyrjeSasi: 0, hyrjeVlere: 0, daljeSasi: 0, daljeVlere: 0, hyrjeVlereMall: 0, daljeVlereMall: 0 };
 const count = n => n.toLocaleString("en-US");
 
+// Each tab's columns on screen: the header, and how its values sit (Loading.jsx), which shapes
+// the placeholder rows shown before the first answer. A real row is 31px high.
+const COLUMNS = {
+  daily: [["Data", "date"], ["Kategoria", "text"], ["Produkti", "text"], ["Sasi hyrje", "num"], ["Shuma hyrje", "num"], ["Kosto/njësi hyrje", "num"], ["Sasi dalje", "num"], ["Shuma dalje", "num"], ["Kosto/njësi dalje", "num"]],
+  stock: [["Kategoria", "text"], ["Produkti", "text"], ["Vlera hyrje", "num"], ["Vlera dalje", "num"], ["Sasia (kg) – Në gjendje", "num"], ["Vlera (lekë) – Në gjendje", "num"], ["Kosto/njësi në gjendje", "num"]],
+  // Hyrje and Dalje sit on the left here, like the first columns of the other tabs.
+  ledger: [["Blerësi / Shitësi", "text"], ["Hyrje", "text"], ["Dalje / Pagesa", "text"], ["Detyrimi", "num"]]
+};
+const SKELETON_ROWS = 8;
+const ROW_HEIGHT = 31;
+
 export default function OperationalReports() {
   const [view, setView] = useState("daily");
   const [buyers, setBuyers] = useState([]);
+  const [buyersLoading, setBuyersLoading] = useState(true);
   const [buyer, setBuyer] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -44,7 +56,8 @@ export default function OperationalReports() {
       .then(({ data, error }) => {
         if (error) console.error(error);
         setBuyers(data || []);
-      });
+      })
+      .finally(() => setBuyersLoading(false));
   }, []);
 
   // Each tab's rows come added up by the database. The buyer/seller filters only Llogaritë.
@@ -209,20 +222,25 @@ export default function OperationalReports() {
   }
 
   return <section className="op-card">
-    <div className="op-header"><div><h2>{title}</h2><p>Data në rend rritës. Sasia, shuma dhe kostoja për njësi llogariten nga faturat e regjistruara.{TJETER_NOTES[view] && ` ${TJETER_NOTES[view]}`}</p></div><div className="op-actions"><button className="op-print" onClick={downloadPDF} disabled={exporting || loading || refreshing || Boolean(loadError)}>{exporting ? <><Spinner />Duke përgatitur…</> : "Shkarko PDF"}</button>{view === "stock" && <button className="op-save" onClick={saveAnnualClosing} disabled={savingClosing || loading || refreshing}>{savingClosing ? "Duke ruajtur…" : "Ruaj mbylljen vjetore"}</button>}</div></div>
+    <div className="op-header"><div><h2>{title}</h2><p>Data në rend rritës. Sasia, shuma dhe kostoja për njësi llogariten nga faturat e regjistruara.{TJETER_NOTES[view] && ` ${TJETER_NOTES[view]}`}</p></div><div className="op-actions"><button className="op-print" onClick={downloadPDF} disabled={exporting || loading || refreshing || Boolean(loadError)}>{exporting ? <><Spinner />Duke përgatitur…</> : "Shkarko PDF"}</button>{view === "stock" && <button className="op-save" onClick={saveAnnualClosing} disabled={savingClosing || loading || refreshing}>{savingClosing ? <><Spinner />Duke ruajtur…</> : "Ruaj mbylljen vjetore"}</button>}</div></div>
     <div className="op-tabs">
       <button className={view === "daily" ? "active" : ""} onClick={() => setView("daily")}>Faturat ditore</button>
       <button className={view === "stock" ? "active" : ""} onClick={() => setView("stock")}>Gjendja / Mbyllja</button>
       <button className={view === "ledger" ? "active" : ""} onClick={() => setView("ledger")}>Llogaritë</button>
     </div>
-    <div className="op-filters"><label>Nga<DatePicker value={from} onChange={setPeriod(setFrom)} clearable /></label><label>Në<DatePicker value={to} onChange={setPeriod(setTo)} clearable /></label>{view === "ledger" && <label>Blerësi / Shitësi<SearchSelect value={buyer} onChange={setBuyer} options={buyers} placeholder="Të gjithë" /></label>}</div>
-    {loading ? <p>Duke ngarkuar…</p> : loadError ? <p className="op-error">Të dhënat nuk u ngarkuan: {loadError}<button onClick={retry}>Provo përsëri</button></p> : <><div className={`op-metrics${refreshing ? " is-refreshing" : ""}`}>{metrics.map(([label, value]) => <div className="op-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
-      {view === "daily" && <div className="op-pager"><span>Rreshtat <b>{dailyCount ? count((page - 1) * DAILY_PAGE_SIZE + 1) : 0}–{count(Math.min(page * DAILY_PAGE_SIZE, dailyCount))}</b> nga <b>{count(dailyCount)}</b>. TOTALI përfshin të gjitha.</span><div><button onClick={() => setPage(1)} disabled={page === 1}>«</button><button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹</button><span>Faqja {page} / {pages}</span><button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page >= pages}>›</button><button onClick={() => setPage(pages)} disabled={page >= pages}>»</button></div></div>}
+    <div className="op-filters"><label>Nga<DatePicker value={from} onChange={setPeriod(setFrom)} clearable /></label><label>Në<DatePicker value={to} onChange={setPeriod(setTo)} clearable /></label>{view === "ledger" && <label>Blerësi / Shitësi<SearchSelect value={buyer} onChange={setBuyer} options={buyers} placeholder="Të gjithë" loading={buyersLoading} /></label>}</div>
+    {loadError ? <p className="op-error">Të dhënat nuk u ngarkuan: {loadError}<button onClick={retry}>Provo përsëri</button></p> : <>
+      {/* Before the first answer, placeholders stand in for the numbers and the rows. */}
+      <div className={`op-metrics${refreshing ? " is-refreshing" : ""}`}>{metrics.map(([label, value]) => <div className="op-metric" key={label}><span>{label}</span><strong>{loading ? <Skeleton width="60%" height="0.9em" /> : value}</strong></div>)}</div>
+      {view === "daily" && <div className="op-pager">{loading ? <Skeleton width={300} height={14} /> : <span>Rreshtat <b>{dailyCount ? count((page - 1) * DAILY_PAGE_SIZE + 1) : 0}–{count(Math.min(page * DAILY_PAGE_SIZE, dailyCount))}</b> nga <b>{count(dailyCount)}</b>. TOTALI përfshin të gjitha.</span>}<div><button onClick={() => setPage(1)} disabled={page === 1}>«</button><button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>‹</button><span>Faqja {page} / {loading ? <Skeleton width={16} /> : pages}</span><button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page >= pages}>›</button><button onClick={() => setPage(pages)} disabled={page >= pages}>»</button></div></div>}
       <RefreshBar active={refreshing} />
       <div className={`op-table-wrap${refreshing ? " is-refreshing" : ""}`}>
-      {view === "daily" && <table className="op-table"><thead><tr><th>Data</th><th>Kategoria</th><th>Produkti</th><th>Sasi hyrje</th><th>Shuma hyrje</th><th>Kosto/njësi hyrje</th><th>Sasi dalje</th><th>Shuma dalje</th><th>Kosto/njësi dalje</th></tr></thead><tbody>{daily.map(row => <tr key={`${row.data}-${row.produkti}`}><td>{dateLabel(row.data)}</td><td>{row.kategoria}</td><td>{row.produkti}</td><td>{qty(row, row.hyrjeSasi)}</td><td>{money(row.hyrjeVlere)}</td><td>{unitCost(row, row.hyrjeVlere, row.hyrjeSasi)}</td><td>{qty(row, row.daljeSasi)}</td><td>{money(row.daljeVlere)}</td><td>{unitCost(row, row.daljeVlere, row.daljeSasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td></td><td>{money(dailySummary.hyrjeSasi)}</td><td>{money(dailySummary.hyrjeVlere)}</td><td>{money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlereMall / dailySummary.hyrjeSasi : 0)}</td><td>{money(dailySummary.daljeSasi)}</td><td>{money(dailySummary.daljeVlere)}</td><td>{money(dailySummary.daljeSasi ? dailySummary.daljeVlereMall / dailySummary.daljeSasi : 0)}</td></tr></tfoot></table>}
-      {view === "stock" && <table className="op-table"><thead><tr><th>Kategoria</th><th>Produkti</th><th>Vlera hyrje</th><th>Vlera dalje</th><th>Sasia (kg) – Në gjendje</th><th>Vlera (lekë) – Në gjendje</th><th>Kosto/njësi në gjendje</th></tr></thead><tbody>{stock.map(row => <tr key={row.produktiId}><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td>{qty(row, row.sasi)}</td><td>{money(row.vlere)}</td><td>{unitCost(row, row.vlere, row.sasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td>{money(stockSummary.hyrje)}</td><td>{money(stockSummary.dalje)}</td><td>{money(stockSummary.sasi)}</td><td>{money(stockSummary.vlere)}</td><td>{money(stockSummary.sasi ? stockSummary.vlereMall / stockSummary.sasi : 0)}</td></tr></tfoot></table>}
-      {view === "ledger" && <table className="op-table"><thead><tr><th>Blerësi / Shitësi</th><th>Hyrje</th><th>Dalje / Pagesa</th><th>Detyrimi</th></tr></thead><tbody>{ledger.map(row => <tr key={row.bleresiId}><td>{row.bleresi}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td className={row.detyrim < 0 ? "negative" : ""}>{money(row.detyrim)}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{money(ledgerSummary.hyrje)}</td><td>{money(ledgerSummary.dalje)}</td><td>{money(ledgerSummary.detyrim)}</td></tr></tfoot></table>}
+      <table className="op-table"><thead><tr>{COLUMNS[view].map(([label]) => <th key={label}>{label}</th>)}</tr></thead>
+      {loading && <tbody aria-busy="true"><SkeletonRows rows={SKELETON_ROWS} columns={COLUMNS[view].map(([, kind]) => kind)} rowHeight={ROW_HEIGHT} /></tbody>}
+      {!loading && view === "daily" && <><tbody>{daily.map(row => <tr key={`${row.data}-${row.produkti}`}><td>{dateLabel(row.data)}</td><td>{row.kategoria}</td><td>{row.produkti}</td><td>{qty(row, row.hyrjeSasi)}</td><td>{money(row.hyrjeVlere)}</td><td>{unitCost(row, row.hyrjeVlere, row.hyrjeSasi)}</td><td>{qty(row, row.daljeSasi)}</td><td>{money(row.daljeVlere)}</td><td>{unitCost(row, row.daljeVlere, row.daljeSasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td></td><td>{money(dailySummary.hyrjeSasi)}</td><td>{money(dailySummary.hyrjeVlere)}</td><td>{money(dailySummary.hyrjeSasi ? dailySummary.hyrjeVlereMall / dailySummary.hyrjeSasi : 0)}</td><td>{money(dailySummary.daljeSasi)}</td><td>{money(dailySummary.daljeVlere)}</td><td>{money(dailySummary.daljeSasi ? dailySummary.daljeVlereMall / dailySummary.daljeSasi : 0)}</td></tr></tfoot></>}
+      {!loading && view === "stock" && <><tbody>{stock.map(row => <tr key={row.produktiId}><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td>{qty(row, row.sasi)}</td><td>{money(row.vlere)}</td><td>{unitCost(row, row.vlere, row.sasi)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td>{money(stockSummary.hyrje)}</td><td>{money(stockSummary.dalje)}</td><td>{money(stockSummary.sasi)}</td><td>{money(stockSummary.vlere)}</td><td>{money(stockSummary.sasi ? stockSummary.vlereMall / stockSummary.sasi : 0)}</td></tr></tfoot></>}
+      {!loading && view === "ledger" && <><tbody>{ledger.map(row => <tr key={row.bleresiId}><td>{row.bleresi}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td className={row.detyrim < 0 ? "negative" : ""}>{money(row.detyrim)}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{money(ledgerSummary.hyrje)}</td><td>{money(ledgerSummary.dalje)}</td><td>{money(ledgerSummary.detyrim)}</td></tr></tfoot></>}
+      </table>
     </div></>}
   </section>;
 }
