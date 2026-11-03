@@ -59,42 +59,45 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [produkte, setProdukte] = useState([]);
   const [monedha, setMonedha] = useState([]);
   const [bleresit, setBleresit] = useState([]);
+  // The filter dropdowns show placeholders until their options arrive.
+  const [lookupsLoading, setLookupsLoading] = useState(true);
+  // The entry being deleted, so its delete button shows that it's working.
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
-    supabase
-      .from("kategoria")
-      .select("id,name")
-      .order("name")
-      .then(({ data }) => setKategorite(data || []));
-  }, []);
-
-  useEffect(() => {
-    supabase
-      .from("kategoria_list")
-      .select("id,name")
-      .eq("kategoria_id", CATEGORY_IDS.MONEDHA)
-      .eq("is_active", true)
-      .order("sort_order")
-      .then(({ data }) => setMonedha(data || []));
-
-    supabase
-      .from("kategoria_list")
-      .select("id,name")
-      .eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI)
-      .eq("is_active", true)
-      .order("sort_order")
-      .then(({ data }) => setBleresit(data || []));
-  }, []);
-
-  // Either filter can be picked first: a category narrows the product list, a product fills in its category.
-  useEffect(() => {
-    supabase
-      .from("kategoria_list")
-      .select("id,name,kategoria_id")
-      .eq("is_active", true)
-      .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
-      .order("name")
-      .then(({ data }) => setProdukte(data || []));
+    Promise.all([
+      supabase
+        .from("kategoria")
+        .select("id,name")
+        .order("name"),
+      supabase
+        .from("kategoria_list")
+        .select("id,name")
+        .eq("kategoria_id", CATEGORY_IDS.MONEDHA)
+        .eq("is_active", true)
+        .order("sort_order"),
+      supabase
+        .from("kategoria_list")
+        .select("id,name")
+        .eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI)
+        .eq("is_active", true)
+        .order("sort_order"),
+      // Either filter can be picked first: a category narrows the product list, a product fills in its category.
+      supabase
+        .from("kategoria_list")
+        .select("id,name,kategoria_id")
+        .eq("is_active", true)
+        .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
+        .order("name")
+    ])
+      .then(([kategoriteRes, monedhaRes, bleresitRes, produkteRes]) => {
+        setKategorite(kategoriteRes.data || []);
+        setMonedha(monedhaRes.data || []);
+        setBleresit(bleresitRes.data || []);
+        setProdukte(produkteRes.data || []);
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLookupsLoading(false));
   }, []);
 
   const kategoriaProdukte = filters.kategoria_id
@@ -135,7 +138,9 @@ export default function DitorTable({ refreshKey = 0 }) {
   async function remove(id) {
     if (!window.confirm("Delete this record?")) return;
 
+    setDeletingId(id);
     const { error } = await supabase.from("ditor").delete().eq("id", id);
+    setDeletingId(null);
     if (error) {
       alert(error.message);
       return;
@@ -315,6 +320,7 @@ export default function DitorTable({ refreshKey = 0 }) {
               onChange={value => setF("kategoria_id", value)}
               options={kategorite}
               placeholder="All"
+              loading={lookupsLoading}
             />
           </div>
 
@@ -326,6 +332,7 @@ export default function DitorTable({ refreshKey = 0 }) {
               onChange={value => setF("produkti_id", value)}
               options={kategoriaProdukte}
               placeholder="All"
+              loading={lookupsLoading}
             />
           </div>
 
@@ -336,6 +343,7 @@ export default function DitorTable({ refreshKey = 0 }) {
               onChange={value => setF("monedha_id", value)}
               options={monedha}
               placeholder="All"
+              loading={lookupsLoading}
             />
           </div>
 
@@ -346,6 +354,7 @@ export default function DitorTable({ refreshKey = 0 }) {
               onChange={value => setF("bleresi_id", value)}
               options={bleresit}
               placeholder="All"
+              loading={lookupsLoading}
             />
           </div>
 
@@ -416,7 +425,7 @@ export default function DitorTable({ refreshKey = 0 }) {
           </button>
 
           <span className="dtPagerText">
-            Faqja {page} / {totalPages}
+            Faqja {page} / {hasLoaded ? totalPages : <Skeleton width={16} />}
           </span>
 
           <button
@@ -505,8 +514,14 @@ export default function DitorTable({ refreshKey = 0 }) {
                       : ""}
                 </td>
                 <td className="actions">
-                  <button onClick={() => setEditRow(r)}>✏️</button>
-                  <button onClick={() => remove(r.id)}>🗑</button>
+                  <button onClick={() => setEditRow(r)} disabled={deletingId === r.id}>✏️</button>
+                  <button
+                    onClick={() => remove(r.id)}
+                    disabled={deletingId === r.id}
+                    aria-label={deletingId === r.id ? "Duke fshirë…" : undefined}
+                  >
+                    {deletingId === r.id ? <Spinner size={12} /> : "🗑"}
+                  </button>
                 </td>
               </tr>
             ))}

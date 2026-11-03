@@ -5,6 +5,7 @@ import SearchSelect from "./SearchSelect";
 import AmountInput from "./AmountInput";
 import DatePicker from "./DatePicker";
 import ClearableSelect from "./ClearableSelect";
+import { Spinner } from "./Loading";
 import "./DitorForm.css";
 
 // The date last picked in the add form. It's kept until the page reloads, so the form reopens on it.
@@ -24,6 +25,8 @@ const DitorForm = forwardRef(function DitorForm(
   const [produkte, setProdukte] = useState([]);
   const [monedha, setMonedha] = useState([]);
   const [bleresit, setBleresit] = useState([]);
+  // The dropdowns show placeholders until their options arrive.
+  const [lookupsLoading, setLookupsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState(() => ({
@@ -38,51 +41,45 @@ const DitorForm = forwardRef(function DitorForm(
   }));
 
   useEffect(() => {
-    supabase.from("kategoria").select("id,name").order("name")
-      .then(({ data, error }) => {
-        if (error) console.error(error);
+    Promise.all([
+      supabase.from("kategoria").select("id,name").order("name"),
+      supabase.from("kategoria_list").select("id,name")
+        .eq("kategoria_id", CATEGORY_IDS.MONEDHA)
+        .eq("is_active", true)
+        .order("sort_order"),
+      supabase.from("kategoria_list").select("id,name")
+        .eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI)
+        .eq("is_active", true)
+        .order("sort_order"),
+      // Either field can be picked first: a category narrows the product list, a product fills in its category.
+      supabase.from("kategoria_list").select("id,name,kategoria_id")
+        .eq("is_active", true)
+        .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
+        .order("name")
+    ])
+      .then(([kategoriteRes, monedhaRes, bleresitRes, produkteRes]) => {
+        [kategoriteRes, monedhaRes, bleresitRes, produkteRes].forEach(res => res.error && console.error(res.error));
+
         // Every category except currencies and buyers/sellers, which have their own fields. Tjetër included.
-        setKategorite((data || []).filter(k => !NOT_ENTRY_CATEGORY_IDS.includes(k.id)));
-      });
-  }, []);
+        setKategorite((kategoriteRes.data || []).filter(k => !NOT_ENTRY_CATEGORY_IDS.includes(k.id)));
+        setMonedha(monedhaRes.data || []);
+        setBleresit(bleresitRes.data || []);
+        setProdukte(produkteRes.data || []);
 
-  useEffect(() => {
-    supabase.from("kategoria_list").select("id,name")
-      .eq("kategoria_id", CATEGORY_IDS.MONEDHA)
-      .eq("is_active", true)
-      .order("sort_order")
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        setMonedha(data || []);
-        const defaultId = (data || []).find(item => item.name.trim().toLocaleLowerCase() === "leke kesh")?.id;
-        if (mode === "create" && defaultId) setForm(prev => ({ ...prev, monedha_id: prev.monedha_id || defaultId }));
-      });
+        // A new entry starts with the usual currency and buyer/seller.
+        if (mode !== "create") return;
+        const named = (list, name) => (list || []).find(item => item.name.trim().toLocaleLowerCase() === name)?.id;
+        const monedhaId = named(monedhaRes.data, "leke kesh");
+        const bleresiId = named(bleresitRes.data, "blerje nga fshataret");
+        setForm(prev => ({
+          ...prev,
+          monedha_id: prev.monedha_id || monedhaId || "",
+          bleresi_shitesi_id: prev.bleresi_shitesi_id || bleresiId || ""
+        }));
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLookupsLoading(false));
   }, [mode]);
-
-  useEffect(() => {
-    supabase.from("kategoria_list").select("id,name")
-      .eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI)
-      .eq("is_active", true)
-      .order("sort_order")
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        setBleresit(data || []);
-        const defaultId = (data || []).find(item => item.name.trim().toLocaleLowerCase() === "blerje nga fshataret")?.id;
-        if (mode === "create" && defaultId) setForm(prev => ({ ...prev, bleresi_shitesi_id: prev.bleresi_shitesi_id || defaultId }));
-      });
-  }, [mode]);
-
-  useEffect(() => {
-    // Either field can be picked first: a category narrows the product list, a product fills in its category.
-    supabase.from("kategoria_list").select("id,name,kategoria_id")
-      .eq("is_active", true)
-      .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
-      .order("name")
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        setProdukte(data || []);
-      });
-  }, []);
 
   // Without a category, list the products of every category shown in the Kategoria list.
   const kategoriaProdukte = form.kategoria_id
@@ -207,6 +204,7 @@ const DitorForm = forwardRef(function DitorForm(
               value={form.kategoria_id}
               onChange={value => setField("kategoria_id", value)}
               options={kategorite}
+              loading={lookupsLoading}
             />
           </div>
 
@@ -216,6 +214,7 @@ const DitorForm = forwardRef(function DitorForm(
               value={form.produkti_id}
               onChange={value => setField("produkti_id", value)}
               options={kategoriaProdukte}
+              loading={lookupsLoading}
             />
           </div>
 
@@ -225,6 +224,7 @@ const DitorForm = forwardRef(function DitorForm(
               value={form.monedha_id}
               onChange={value => setField("monedha_id", value)}
               options={monedha}
+              loading={lookupsLoading}
             />
           </div>
 
@@ -234,6 +234,7 @@ const DitorForm = forwardRef(function DitorForm(
               value={form.bleresi_shitesi_id}
               onChange={value => setField("bleresi_shitesi_id", value)}
               options={bleresit}
+              loading={lookupsLoading}
             />
           </div>
 
@@ -282,7 +283,7 @@ const DitorForm = forwardRef(function DitorForm(
         {!hideBottomButton && (
           <div className={`footer ${isModal ? "footer--modal" : ""}`}>
             <button className="btnPrimary" type="submit" disabled={!isValid || saving}>
-              {saving ? "Duke ruajtur..." : isModal ? "Ruaj ndryshimet" : "Shto të dhënë"}
+              {saving ? <><Spinner />Duke ruajtur…</> : isModal ? "Ruaj ndryshimet" : "Shto të dhënë"}
             </button>
 
             {isModal && (
