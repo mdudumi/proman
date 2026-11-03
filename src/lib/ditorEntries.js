@@ -87,11 +87,12 @@ export const averagePerKg = line => (line.sasia ? line.shumaMall / line.sasia : 
 // The totals lines under the dashboard table and in its exports: Hyrje and Dalje, or only the
 // action the Veprimi filter picks. An average price per kg only means something for one product
 // (across products it mixes, say, leaves and roots), so `average` is null unless one is picked.
-// With both lines, a third gives the difference, so nobody has to subtract by hand. It's Dalje
-// minus Hyrje, from the owner's side: Hyrje is stock bought (money spent), Dalje stock sold
-// (money earned), so a negative difference means more was spent than earned. Its lekë include
-// Tjetër. Its kg, like the average, are null unless one product is picked: kg across many
-// products says nothing useful. With `selected`, the labels say the entries are the selected ones.
+// With both lines, a third gives the difference, so nobody has to subtract by hand. Its lekë are
+// Dalje minus Hyrje, from the owner's side: Hyrje is stock bought (money spent), Dalje stock sold
+// (money earned), so a negative difference means more was spent than earned. They include Tjetër.
+// Its kg go the other way, Hyrje minus Dalje: what's left in the warehouse, positive when more
+// came in than went out. Like the average, they're null unless one product is picked: kg across
+// many products says nothing useful. With `selected`, the labels say the entries are the selected ones.
 export function totalsLines(totals, filters, { selected = false } = {}) {
   const oneProduct = Boolean(filters.produkti_id);
   const lines = VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi).map(v => {
@@ -112,9 +113,9 @@ export function totalsLines(totals, filters, { selected = false } = {}) {
     lines.push({
       key: "diff",
       // A plain hyphen: the PDF's built-in font has no minus sign (−), and garbles the whole line.
-      label: "Diferenca (Dalje - Hyrje)",
-      // Rounded, and -0 made 0, so float noise can't show up as -0.00
-      sasia: oneProduct ? Math.round((dalje.sasia - hyrje.sasia) * 1000) / 1000 || 0 : null,
+      label: oneProduct ? "Diferenca (lekë: Dalje - Hyrje, kg: Hyrje - Dalje)" : "Diferenca (Dalje - Hyrje)",
+      // Rounded, and -0 made 0, so float noise can't show up as -0
+      sasia: oneProduct ? Math.round((hyrje.sasia - dalje.sasia) * 1000) / 1000 || 0 : null,
       shuma: Math.round((dalje.shuma - hyrje.shuma) * 100) / 100 || 0,
       average: null,
       difference: true

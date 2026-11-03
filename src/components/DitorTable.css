@@ -243,7 +243,7 @@
   padding-left:0;
 }
 
-/* Diferenca (Dalje − Hyrje): set apart from the two totals above it, red when Hyrje is larger */
+/* Diferenca: set apart from the two totals above it, red where it's negative */
 .dtTotals tr.dtTotalsDiff td{
   border-top-style:dashed;
 }
