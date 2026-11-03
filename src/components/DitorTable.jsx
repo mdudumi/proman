@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import { byEntryOrder, entriesQuery, fetchAllEntries, isTjeterEntry, selectionFilters } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
+import { formatMoney, withKg } from "../lib/format";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
@@ -503,14 +504,14 @@ export default function DitorTable({ refreshKey = 0 }) {
                 <td title={r.bleresi?.name || ""}>{r.bleresi?.name}</td>
                 <td title={r.veprimi || ""}>{r.veprimi}</td>
                 <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
-                  {isTjeterEntry(r) ? "—" : r.sasia}
+                  {isTjeterEntry(r) ? "—" : withKg(r.sasia)}
                 </td>
-                <td className="num">{r.shuma_leke}</td>
+                <td className="num">{formatMoney(r.shuma_leke)}</td>
                 <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
                   {isTjeterEntry(r)
                     ? "—"
                     : typeof r.kosto_per_njesi === "number"
-                      ? r.kosto_per_njesi.toFixed(2)
+                      ? formatMoney(r.kosto_per_njesi)
                       : ""}
                 </td>
                 <td className="actions">

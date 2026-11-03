@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { entryTotals, isTjeterEntry, totalsLines } from "./ditorEntries";
+import { formatKg as kg, formatMoney as money } from "./format";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "./pdfPage";
 
 // Excel and PDF exports of the dashboard entries that match the filters.
@@ -24,8 +25,6 @@ function productNote(lines, selected) {
 }
 
 const count = n => n.toLocaleString("en-US");
-const money = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const kg = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
 
 function formatDate(value) {
   const [y, m, d] = String(value || "").split("-");

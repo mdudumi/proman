@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { entryTotals, fetchEntryTotals, selectionFilters, totalsLines } from "../lib/ditorEntries";
+import { formatMoney, withKg } from "../lib/format";
 import { Skeleton } from "./Loading";
 
 // The dashboard table's columns: the label spans the first six (Data … Veprimi),
@@ -21,19 +22,16 @@ const SELECTION_HINTS = {
 // The difference line's lekë: red for a loss (more bought than sold), green for a profit.
 const moneyClass = line => (line.shuma < 0 ? " neg" : line.difference && line.shuma > 0 ? " pos" : "");
 
-const money = v => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const kg = v => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-
 function TotalsRow({ line, oneProduct, hints }) {
   return (
     <tr className={line.difference ? "dtTotalsDiff" : undefined}>
       <td colSpan={LABEL_COLUMNS}>{line.label}</td>
       <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={line.sasia == null ? hints.diffKg : TJETER_HINT}>
-        {line.sasia == null ? "—" : kg(line.sasia)}
+        {line.sasia == null ? "—" : withKg(line.sasia)}
       </td>
-      <td className={`num${moneyClass(line)}`}>{money(line.shuma)}</td>
+      <td className={`num${moneyClass(line)}`}>{formatMoney(line.shuma)}</td>
       <td className="num" title={line.difference ? undefined : oneProduct ? TJETER_HINT : hints.average}>
-        {line.average == null ? "—" : money(line.average)}
+        {line.average == null ? "—" : formatMoney(line.average)}
       </td>
       <td />
     </tr>
