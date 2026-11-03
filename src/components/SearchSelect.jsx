@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ClearButton from "./ClearButton";
+import { Skeleton } from "./Loading";
 import "./SearchSelect.css";
 
 // The list renders in <body> so modals and cards with overflow: hidden don't cut it off.
@@ -30,13 +31,15 @@ const normalize = text =>
  * chosen row's id, "" means nothing chosen, and `onChange` receives the new id.
  * `options` is a list of { id, name } rows, as they come from Supabase.
  * A chosen value can be cleared with the ✕, or Backspace / Delete.
+ * While `loading`, the options aren't there yet: a placeholder bar shows, and it doesn't open.
  */
 export default function SearchSelect({
   value,
   onChange,
   options,
   placeholder = "Select",
-  disabled = false
+  disabled = false,
+  loading = false
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -179,22 +182,28 @@ export default function SearchSelect({
     }
   }
 
-  const canClear = Boolean(selected) && !disabled;
+  const canClear = Boolean(selected) && !disabled && !loading;
 
   return (
     <div className={`select-field ${canClear ? "has-value" : ""}`}>
       <button
         ref={triggerRef}
         type="button"
-        className="ss-trigger"
-        disabled={disabled}
+        className={`ss-trigger${loading ? " is-loading" : ""}`}
+        disabled={disabled || loading}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-busy={loading || undefined}
         onClick={() => (open ? close(false) : openList())}
         onKeyDown={onTriggerKeyDown}
       >
         <span className="ss-value">
-          {selected ? selected.name : placeholder}
+          {loading ? (
+            <>
+              <span className="sr-only">Duke ngarkuar…</span>
+              <Skeleton width="60%" />
+            </>
+          ) : selected ? selected.name : placeholder}
         </span>
       </button>
 

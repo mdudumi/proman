@@ -181,6 +181,17 @@
   background:rgba(255,255,255,.14);
 }
 
+/* While the entry is being deleted */
+.actions button:disabled{
+  cursor:progress;
+  opacity:.6;
+}
+
+.actions button .spinner{
+  margin:0;
+  color:var(--text);
+}
+
 .dtEmpty{
   text-align:center;
   color:var(--muted);
@@ -232,7 +243,7 @@
   padding-left:0;
 }
 
-/* Diferenca (Dalje − Hyrje): set apart from the two totals above it, red when Hyrje is larger */
+/* Diferenca: set apart from the two totals above it, red where it's negative */
 .dtTotals tr.dtTotalsDiff td{
   border-top-style:dashed;
 }

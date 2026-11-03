@@ -12,6 +12,12 @@
   text-overflow: ellipsis;
 }
 
+/* Options still loading: the placeholder bar shows at full strength, not greyed out like a disabled field */
+.ss-trigger.is-loading:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
 /* The open list */
 .ss-panel {
   position: fixed;

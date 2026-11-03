@@ -13,6 +13,19 @@ import OperationalReports from "./OperationalReports";
 import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
 import ClearableSelect from "./ClearableSelect";
+import { RefreshBar, Skeleton, SkeletonRows, Spinner } from "./Loading";
+
+// Resolves once the browser has drawn the current screen, so a spinner shows before work that blocks it.
+// At most 100 ms: a hidden tab draws nothing, and the work shouldn't wait for it.
+const nextPaint = () =>
+  new Promise(resolve => {
+    requestAnimationFrame(() => setTimeout(resolve));
+    setTimeout(resolve, 100);
+  });
+
+// Placeholder rows for the first load. A real row is 28px high.
+const SKELETON_ROWS = 8;
+const ROW_HEIGHT = 28;
 
 const VEPRIM_OPTIONS = [
   { id: "Hyrje/Blerje", name: "Hyrje/Blerje" },
@@ -67,10 +80,15 @@ export default function DitorReport() {
   const [rows, setRows] = useState([]);
   // GRAND TOTAL and the summary cards, for every matching entry (only the first 1,000 rows arrive).
   const [balance, setBalance] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  // False until the first answer arrives: until then placeholders stand in for the cards and rows.
+  // After that, a reload keeps the old report on screen, dimmed.
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
   // Only the latest request fills the report; an older one that answers late is dropped.
   const lastRequest = useRef(0);
+  // "pdf" or "excel" while that file is being built.
+  const [exporting, setExporting] = useState("");
 
   const [filters, setFilters] = useState({
     fromDate: "",
@@ -93,6 +111,8 @@ export default function DitorReport() {
   const [produkte, setProdukte] = useState([]);
   const [monedhat, setMonedhat] = useState([]);
   const [bleresit, setBleresit] = useState([]);
+  // The filter dropdowns show placeholders until their options arrive.
+  const [lookupsLoading, setLookupsLoading] = useState(true);
 
   useEffect(() => {
     loadLookups();
@@ -152,13 +172,15 @@ export default function DitorReport() {
       setBleresit(bleresiRes.data || []);
     } catch (err) {
       console.error("Lookup load error:", err);
+    } finally {
+      setLookupsLoading(false);
     }
   }
 
   async function loadReport() {
     const request = ++lastRequest.current;
+    // The previous report, or its error, stays on screen until this answer replaces it.
     setLoading(true);
-    setError("");
 
     const params = {
       p_from_date: filters.fromDate || null,
@@ -191,6 +213,7 @@ export default function DitorReport() {
         return String(a.id ?? "").localeCompare(String(b.id ?? ""));
       });
 
+      setError("");
       setRows(sorted);
       setBalance(balanceTotals);
     } catch (err) {
@@ -200,7 +223,10 @@ export default function DitorReport() {
       setRows([]);
       setBalance(null);
     } finally {
-      if (request === lastRequest.current) setLoading(false);
+      if (request === lastRequest.current) {
+        setLoading(false);
+        setHasLoaded(true);
+      }
     }
   }
 
@@ -731,6 +757,28 @@ export default function DitorReport() {
     );
   }
 
+  // The button shows a spinner while its file is built. The PDF is built in one go, which
+  // freezes the page, so the spinner gets drawn first.
+  async function runExport(kind) {
+    setExporting(kind);
+    try {
+      await nextPaint();
+      if (kind === "excel") await exportExcel();
+      else exportPDF();
+    } catch (err) {
+      console.error(err);
+      alert(`Eksporti nuk u krye: ${err.message || err}`);
+    } finally {
+      setExporting("");
+    }
+  }
+
+  // The rows on screen are the latest answer's, or the previous one's while a reload runs.
+  const refreshing = loading && hasLoaded;
+  const skeletonColumns = visibleColumns.map(col => (col.type === "number" ? "num" : "date"));
+  // A summary card's number, or a placeholder bar before the first answer.
+  const cardValue = value => (hasLoaded ? formatNumber(value) : <Skeleton width="65%" height="0.9em" />);
+
   return (
     <div className="dr-page">
       <div className="dr-shell">
@@ -788,6 +836,7 @@ export default function DitorReport() {
                 onChange={setKategoria}
                 options={kategori}
                 placeholder="All"
+                loading={lookupsLoading}
               />
             </div>
 
@@ -799,6 +848,7 @@ export default function DitorReport() {
                 onChange={setProdukti}
                 options={filteredProdukte}
                 placeholder="All"
+                loading={lookupsLoading}
               />
             </div>
 
@@ -809,6 +859,7 @@ export default function DitorReport() {
                 onChange={value => setFilters(prev => ({ ...prev, monedha_id: value }))}
                 options={monedhat}
                 placeholder="All"
+                loading={lookupsLoading}
               />
             </div>
 
@@ -819,6 +870,7 @@ export default function DitorReport() {
                 onChange={value => setFilters(prev => ({ ...prev, bleresi_id: value }))}
                 options={bleresit}
                 placeholder="All"
+                loading={lookupsLoading}
               />
             </div>
 
@@ -886,42 +938,42 @@ export default function DitorReport() {
           </div>
         )}
 
-        <div className={`dr-summary-grid ultra ${reportSection !== "balance" ? "dr-hidden" : ""}`}>
+        <div className={`dr-summary-grid ultra ${reportSection !== "balance" ? "dr-hidden" : ""} ${refreshing ? "is-refreshing" : ""}`}>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Sasia (kg) – Në Hapje</div>
-            <div className="dr-summary-value">{formatNumber(topSummary.openingQty)}</div>
+            <div className="dr-summary-value">{cardValue(topSummary.openingQty)}</div>
           </div>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Hyrje Totale</div>
-            <div className="dr-summary-value">{formatNumber(topSummary.inQty)}</div>
+            <div className="dr-summary-value">{cardValue(topSummary.inQty)}</div>
           </div>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Dalje Totale</div>
-            <div className="dr-summary-value">{formatNumber(topSummary.outQty)}</div>
+            <div className="dr-summary-value">{cardValue(topSummary.outQty)}</div>
           </div>
           <div className="dr-summary-card">
             <div className={`dr-summary-value ${isNegative(topSummary.closingQty) ? "neg" : ""}`}>
-              {formatNumber(topSummary.closingQty)}
+              {cardValue(topSummary.closingQty)}
             </div>
             <div className="dr-summary-label bottom">Sasia (kg) – Në Gjendje</div>
           </div>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Vlera (lekë) – Në Hapje</div>
             <div className={`dr-summary-value ${isNegative(topSummary.openingValue) ? "neg" : ""}`}>
-              {formatNumber(topSummary.openingValue)}
+              {cardValue(topSummary.openingValue)}
             </div>
           </div>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Vlera Hyrje</div>
-            <div className="dr-summary-value">{formatNumber(topSummary.inValue)}</div>
+            <div className="dr-summary-value">{cardValue(topSummary.inValue)}</div>
           </div>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Vlera Dalje</div>
-            <div className="dr-summary-value">{formatNumber(topSummary.outValue)}</div>
+            <div className="dr-summary-value">{cardValue(topSummary.outValue)}</div>
           </div>
           <div className="dr-summary-card">
             <div className={`dr-summary-value ${isNegative(topSummary.closingValue) ? "neg" : ""}`}>
-              {formatNumber(topSummary.closingValue)}
+              {cardValue(topSummary.closingValue)}
             </div>
             <div className="dr-summary-label bottom">Vlera (lekë) – Në Gjendje</div>
           </div>
@@ -933,17 +985,26 @@ export default function DitorReport() {
               <div className="dr-section-title">Rezultatet</div>
               <div className="dr-meta">
                 <span><b>Periudha:</b> {reportPeriod.from} - {reportPeriod.to}</span>
-                <span><b>Rreshta:</b> {rowsCount}</span>
-                <span><b>Grupe:</b> {groupedRows.length}</span>
+                <span><b>Rreshta:</b> {hasLoaded ? rowsCount : <Skeleton width={40} />}</span>
+                <span><b>Grupe:</b> {hasLoaded ? groupedRows.length : <Skeleton width={20} />}</span>
               </div>
             </div>
 
+            {/* Not while a reload runs: the file would have the previous filters' numbers. */}
             <div className="dr-toolbar-actions">
-              <button className="dr-btn dr-btn-primary" disabled={!rows.length} onClick={exportPDF}>
-                Download PDF
+              <button
+                className="dr-btn dr-btn-primary"
+                disabled={!rows.length || loading || Boolean(exporting)}
+                onClick={() => runExport("pdf")}
+              >
+                {exporting === "pdf" ? <><Spinner />Duke përgatitur…</> : "Download PDF"}
               </button>
-              <button className="dr-btn dr-btn-primary" disabled={!rows.length} onClick={exportExcel}>
-                Export Excel
+              <button
+                className="dr-btn dr-btn-primary"
+                disabled={!rows.length || loading || Boolean(exporting)}
+                onClick={() => runExport("excel")}
+              >
+                {exporting === "excel" ? <><Spinner />Duke përgatitur…</> : "Export Excel"}
               </button>
               <button
                 className="dr-btn dr-btn-dark"
@@ -955,8 +1016,13 @@ export default function DitorReport() {
           </div>
 
           <div className="dr-filter-line">{getFilterSummaryText()}</div>
-          {cut && !loading && <div className="dr-cut-note" role="note">{cutNote}</div>}
+          {cut && (
+            <div className={`dr-cut-note ${refreshing ? "is-refreshing" : ""}`} role="note">
+              {cutNote}
+            </div>
+          )}
 
+          <RefreshBar active={refreshing} />
           <div className="dr-table-wrap ultra">
             <table className="dr-table ultra">
               <colgroup>
@@ -978,16 +1044,12 @@ export default function DitorReport() {
                 </tr>
               </thead>
 
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="dr-empty">
-                      Duke ngarkuar...
-                    </td>
-                  </tr>
+              <tbody className={refreshing ? "is-refreshing" : undefined} aria-busy={loading}>
+                {!hasLoaded && (
+                  <SkeletonRows rows={SKELETON_ROWS} columns={skeletonColumns} rowHeight={ROW_HEIGHT} />
                 )}
 
-                {!loading && error && (
+                {hasLoaded && error && (
                   <tr>
                     <td colSpan={visibleColumns.length} className="dr-empty dr-error">
                       Raporti nuk u ngarkua: {error}
@@ -998,7 +1060,7 @@ export default function DitorReport() {
                   </tr>
                 )}
 
-                {!loading && !error && rows.length === 0 && (
+                {hasLoaded && !error && rows.length === 0 && (
                   <tr>
                     <td colSpan={visibleColumns.length} className="dr-empty">
                       Nuk ka të dhëna për filtrat e zgjedhur.
@@ -1006,7 +1068,7 @@ export default function DitorReport() {
                   </tr>
                 )}
 
-                {!loading &&
+                {!error &&
                   groupedRows.map(group => (
                     <React.Fragment key={group.groupKey}>
                       {filters.groupBy && (
@@ -1059,8 +1121,8 @@ export default function DitorReport() {
                   ))}
               </tbody>
 
-              {!loading && rows.length > 0 && (
-                <tfoot>
+              {!error && rows.length > 0 && (
+                <tfoot className={refreshing ? "is-refreshing" : undefined}>
                   <tr>
                     {visibleColumns.map(col => (
                       <td

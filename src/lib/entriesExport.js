@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { entryTotals, isTjeterEntry, totalsLines } from "./ditorEntries";
+import { formatKg as kg, formatMoney as money } from "./format";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "./pdfPage";
 
 // Excel and PDF exports of the dashboard entries that match the filters.
@@ -24,8 +25,6 @@ function productNote(lines, selected) {
 }
 
 const count = n => n.toLocaleString("en-US");
-const money = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const kg = v => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
 
 function formatDate(value) {
   const [y, m, d] = String(value || "").split("-");
@@ -98,7 +97,8 @@ export function exportEntriesPdf(rows, meta) {
   }
 
   const right = { halign: "right" };
-  // The Diferenca line is red where Hyrje is larger: more spent than earned.
+  // The Diferenca line is red where it's negative: lekë where more was spent than earned, kg
+  // where more went out than came in.
   const total = value => (value < 0 ? { ...right, textColor: [185, 28, 28] } : right);
   // …and its lekë green for a profit.
   const totalMoney = line => (line.difference && line.shuma > 0 ? { ...right, textColor: [21, 128, 61] } : total(line.shuma));
@@ -215,8 +215,8 @@ export async function exportEntriesExcel(rows, meta) {
     const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia ?? "—", line.shuma, line.average ?? "—"]);
     sheet.mergeCells(row.number, 1, row.number, 6);
     row.eachCell(cell => {
-      // The Diferenca line is red where Hyrje is larger: more spent than earned, and its lekë
-      // (column 8) green for a profit.
+      // The Diferenca line is red where it's negative (as in the PDF), and its lekë (column 8)
+      // green for a profit.
       const negative = typeof cell.value === "number" && cell.value < 0;
       const profit = line.difference && cell.col === 8 && cell.value > 0;
       cell.font = { bold: true, color: { argb: negative ? "B91C1C" : profit ? "15803D" : "0F172A" } };

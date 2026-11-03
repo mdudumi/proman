@@ -22,6 +22,27 @@ html, body {
   color: var(--text);
 }
 
+/* Pages never scroll sideways: wide tables scroll inside their own box.
+   On <html> this applies to the window, and `clip` on <body> doesn't make it a scroll box,
+   so the page still scrolls as a document: the top bar stays pinned, and a phone's address bar can hide. */
+html {
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: clip;
+}
+
+/* iPhones zoom in on a field under 16px when it's tapped. The searchable dropdowns match the other fields. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  .ss-trigger {
+    font-size: 16px !important;
+  }
+}
+
 /* Dropdowns: one look for every <select> and searchable dropdown (SearchSelect) in the app.
    Colours come from the --select-* variables, so a light page overrides only those.
    Date fields (DatePicker) use the same colours for their calendar. */

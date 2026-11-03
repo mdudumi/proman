@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { Spinner } from "../components/Loading";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -86,7 +87,7 @@ export default function Login() {
 
         {/* Submit */}
         <button type="submit" disabled={loading} style={styles.button}>
-          {loading ? "Signing in…" : "Sign in"}
+          {loading ? <><Spinner />Signing in…</> : "Sign in"}
         </button>
 
         {/* Footer */}

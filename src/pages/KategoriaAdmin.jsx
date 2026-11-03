@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { Skeleton, Spinner } from "../components/Loading";
+
+// Placeholder rows for the first load: name bar widths, varied so they don't look like a grid.
+const SKELETON_WIDTHS = [120, 90, 150, 105, 135, 80];
 
 export default function KategoriaAdmin() {
   const navigate = useNavigate();
@@ -15,32 +19,37 @@ export default function KategoriaAdmin() {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editValue, setEditValue] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  // False until the first answer: until then placeholder rows stand in for both lists.
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  // The change being saved, for example "add-category" or "delete-<id>": its button shows that
+  // it's working, and the other changes wait until it's saved and the list reloaded.
+  const [busy, setBusy] = useState("");
 
   useEffect(() => {
     load();
   }, []);
 
   async function load(selectedId = selected?.id) {
-    setLoading(true);
-
     const { data, error } = await supabase
       .from("kategoria")
       .select("id, name, kategoria_list(id, name, kategoria_id)")
       .order("name");
 
+    setHasLoaded(true);
+
     if (error) {
       console.error(error);
-      setLoading(false);
+      setLoadError(error.message);
       return;
     }
 
+    setLoadError("");
     const rows = data || [];
     setKategoria(rows);
 
     if (!rows.length) {
       setSelected(null);
-      setLoading(false);
       return;
     }
 
@@ -50,137 +59,189 @@ export default function KategoriaAdmin() {
     } else {
       setSelected(rows[0]);
     }
-
-    setLoading(false);
   }
 
-  async function addCategory() {
+  async function change(name, action) {
+    if (busy) return;
+    setBusy(name);
+    try {
+      await action();
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function addCategory() {
     if (!newCat.trim()) return;
 
-    const { error } = await supabase.from("kategoria").insert({
-      name: newCat.trim(),
+    return change("add-category", async () => {
+      const { error } = await supabase.from("kategoria").insert({
+        name: newCat.trim(),
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setNewCat("");
+      await load();
     });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setNewCat("");
-    load();
   }
 
-  async function addItem() {
+  function addItem() {
     if (!newItem.trim() || !selected) return;
 
-    const { error } = await supabase.from("kategoria_list").insert({
-      name: newItem.trim(),
-      kategoria_id: selected.id,
+    return change("add-item", async () => {
+      const { error } = await supabase.from("kategoria_list").insert({
+        name: newItem.trim(),
+        kategoria_id: selected.id,
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setNewItem("");
+      await load(selected.id);
     });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setNewItem("");
-    load(selected.id);
   }
 
-  async function saveCategory(id) {
+  function saveCategory(id) {
     if (!editValue.trim()) return;
 
-    const { error } = await supabase
-      .from("kategoria")
-      .update({ name: editValue.trim() })
-      .eq("id", id);
+    return change(`rename-${id}`, async () => {
+      const { error } = await supabase
+        .from("kategoria")
+        .update({ name: editValue.trim() })
+        .eq("id", id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+      if (error) {
+        alert(error.message);
+        return;
+      }
 
-    setEditingCatId(null);
-    setEditValue("");
-    load(id);
+      setEditingCatId(null);
+      setEditValue("");
+      await load(id);
+    });
   }
 
-  async function saveItem(id) {
+  function saveItem(id) {
     if (!editValue.trim()) return;
 
-    const { error } = await supabase
-      .from("kategoria_list")
-      .update({ name: editValue.trim() })
-      .eq("id", id);
+    return change(`rename-${id}`, async () => {
+      const { error } = await supabase
+        .from("kategoria_list")
+        .update({ name: editValue.trim() })
+        .eq("id", id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+      if (error) {
+        alert(error.message);
+        return;
+      }
 
-    setEditingItemId(null);
-    setEditValue("");
-    load(selected?.id);
+      setEditingItemId(null);
+      setEditValue("");
+      await load(selected?.id);
+    });
   }
 
-  async function deleteCategory(cat) {
-    if (!cat) return;
+  function deleteCategory(cat) {
+    if (!cat || busy) return;
 
     const confirmed = window.confirm(
       `A je i sigurt që do fshish kategorinë "${cat.name}"?`
     );
     if (!confirmed) return;
 
-    const { error: itemsError } = await supabase
-      .from("kategoria_list")
-      .delete()
-      .eq("kategoria_id", cat.id);
+    return change(`delete-${cat.id}`, async () => {
+      const { error: itemsError } = await supabase
+        .from("kategoria_list")
+        .delete()
+        .eq("kategoria_id", cat.id);
 
-    if (itemsError) {
-      alert(itemsError.message);
-      return;
-    }
+      if (itemsError) {
+        alert(itemsError.message);
+        return;
+      }
 
-    const { error } = await supabase
-      .from("kategoria")
-      .delete()
-      .eq("id", cat.id);
+      const { error } = await supabase
+        .from("kategoria")
+        .delete()
+        .eq("id", cat.id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+      if (error) {
+        alert(error.message);
+        return;
+      }
 
-    if (selected?.id === cat.id) {
-      setSelected(null);
-    }
+      if (selected?.id === cat.id) {
+        setSelected(null);
+      }
 
-    load();
+      await load(selected?.id === cat.id ? null : selected?.id);
+    });
   }
 
-  async function deleteItem(item) {
-    if (!item) return;
+  function deleteItem(item) {
+    if (!item || busy) return;
 
     const confirmed = window.confirm(
       `A je i sigurt që do fshish "${item.name}"?`
     );
     if (!confirmed) return;
 
-    const { error } = await supabase
-      .from("kategoria_list")
-      .delete()
-      .eq("id", item.id);
+    return change(`delete-${item.id}`, async () => {
+      const { error } = await supabase
+        .from("kategoria_list")
+        .delete()
+        .eq("id", item.id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+      if (error) {
+        alert(error.message);
+        return;
+      }
 
-    load(selected?.id);
+      await load(selected?.id);
+    });
   }
+
+  // A button that starts a change: disabled while any change is saving, with a spinner on the one that is.
+  function changeButton(name, style, label, onClick) {
+    return (
+      <button
+        style={{ ...style, ...(busy ? busyBtn : {}) }}
+        disabled={Boolean(busy)}
+        onClick={onClick}
+      >
+        {busy === name && <Spinner size={12} />}
+        {label}
+      </button>
+    );
+  }
+
+  // `status` tells screen readers it's loading, once for the page.
+  const skeletonRows = (status) => SKELETON_WIDTHS.map((width, i) => (
+    <div key={i} style={row}>
+      <div style={rowContent}>
+        {status && i === 0 && <span className="sr-only" role="status">Duke ngarkuar…</span>}
+        <Skeleton width={width} height={14} />
+        <Skeleton width={46} height={28} />
+      </div>
+    </div>
+  ));
 
   return (
     <div>
+      {loadError && (
+        <div style={errorBox}>
+          Të dhënat nuk u ngarkuan: {loadError}
+          {changeButton("reload", secondaryBtn, "Provo përsëri", () => change("reload", () => load()))}
+        </div>
+      )}
+
       <div style={grid}>
         <div style={panel}>
           <div style={panelHeader}>
@@ -195,12 +256,12 @@ export default function KategoriaAdmin() {
               style={input}
               onKeyDown={(e) => e.key === "Enter" && addCategory()}
             />
-            <button style={primaryBtn} onClick={addCategory}>
-              Shto
-            </button>
+            {changeButton("add-category", primaryBtn, "Shto", addCategory)}
           </div>
 
-          <div>
+          <div aria-busy={!hasLoaded}>
+            {!hasLoaded && skeletonRows(true)}
+
             {kategoria.map((k) => (
               <div
                 key={k.id}
@@ -218,6 +279,7 @@ export default function KategoriaAdmin() {
                   <input
                     autoFocus
                     value={editValue}
+                    readOnly={busy === `rename-${k.id}`}
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={() => saveCategory(k.id)}
                     onKeyDown={(e) => {
@@ -227,21 +289,16 @@ export default function KategoriaAdmin() {
                         setEditValue("");
                       }
                     }}
-                    style={editInput}
+                    style={{ ...editInput, ...(busy === `rename-${k.id}` ? busyBtn : {}) }}
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
                   <div style={rowContent}>
                     <span>{k.name}</span>
-                    <button
-                      style={dangerBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteCategory(k);
-                      }}
-                    >
-                      Fshi
-                    </button>
+                    {changeButton(`delete-${k.id}`, dangerBtn, "Fshi", (e) => {
+                      e.stopPropagation();
+                      deleteCategory(k);
+                    })}
                   </div>
                 )}
               </div>
@@ -252,7 +309,7 @@ export default function KategoriaAdmin() {
         <div style={panel}>
           <div style={panelHeader}>
             <h3 style={panelTitle}>
-              {selected ? `Elementi — ${selected.name}` : "Items"}
+              {selected ? `Elementi — ${selected.name}` : hasLoaded ? "Items" : <Skeleton width={180} height={16} />}
             </h3>
           </div>
 
@@ -265,17 +322,15 @@ export default function KategoriaAdmin() {
                 style={input}
                 onKeyDown={(e) => e.key === "Enter" && addItem()}
               />
-              <button style={primaryBtn} onClick={addItem}>
-                Shto
-              </button>
+              {changeButton("add-item", primaryBtn, "Shto", addItem)}
             </div>
           )}
 
-          {!selected && (
+          {hasLoaded && !selected && (
             <div style={empty}>Select a category to manage items</div>
           )}
 
-          {loading && <div style={empty}>Duke ngarkuar...</div>}
+          {!hasLoaded && <div aria-busy="true">{skeletonRows(false)}</div>}
 
           {selected?.kategoria_list?.map((i) => (
             <div
@@ -290,6 +345,7 @@ export default function KategoriaAdmin() {
                 <input
                   autoFocus
                   value={editValue}
+                  readOnly={busy === `rename-${i.id}`}
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={() => saveItem(i.id)}
                   onKeyDown={(e) => {
@@ -299,17 +355,12 @@ export default function KategoriaAdmin() {
                       setEditValue("");
                     }
                   }}
-                  style={editInput}
+                  style={{ ...editInput, ...(busy === `rename-${i.id}` ? busyBtn : {}) }}
                 />
               ) : (
                 <div style={rowContent}>
                   <span>{i.name}</span>
-                  <button
-                    style={dangerBtn}
-                    onClick={() => deleteItem(i)}
-                  >
-                    Fshi
-                  </button>
+                  {changeButton(`delete-${i.id}`, dangerBtn, "Fshi", () => deleteItem(i))}
                 </div>
               )}
             </div>
@@ -444,4 +495,24 @@ const dangerBtn = {
   cursor: "pointer",
   fontWeight: 600,
   fontSize: 12,
+};
+
+/* While a change is saving */
+const busyBtn = {
+  opacity: 0.6,
+  cursor: "progress",
+};
+
+const errorBox = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  marginBottom: 16,
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid rgba(255,138,138,0.35)",
+  background: "rgba(127,29,29,0.18)",
+  color: "#ff8a8a",
+  fontSize: 13,
 };

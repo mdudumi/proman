@@ -45,3 +45,13 @@ export function RefreshBar({ active }) {
 export function Spinner({ size = 14 }) {
   return <span className="spinner" style={{ width: size, height: size }} aria-hidden="true" />;
 }
+
+/** A spinner and a line of text in the middle of the screen, for waits before any page can show. */
+export function PageLoader({ text }) {
+  return (
+    <div className="pageLoader" role="status">
+      <Spinner size={28} />
+      <span>{text}</span>
+    </div>
+  );
+}
