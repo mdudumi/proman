@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabaseClient";
+import { Spinner } from "./components/Loading";
 import AppLayout from "./layout/AppLayout.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import KategoriaAdmin from "./pages/KategoriaAdmin.jsx";
@@ -10,11 +12,14 @@ import DitorReport from "./components/DitorReport";
 function GlobalLogoutBar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   if (location.pathname === "/login") return null;
 
   async function handleLogout() {
+    setLoggingOut(true);
     const { error } = await supabase.auth.signOut();
+    setLoggingOut(false);
     if (error) {
       console.error("Logout error:", error);
       return;
@@ -35,6 +40,7 @@ function GlobalLogoutBar() {
     >
       <button
         onClick={handleLogout}
+        disabled={loggingOut}
         style={{
           padding: "10px 16px",
           borderRadius: "10px",
@@ -42,9 +48,10 @@ function GlobalLogoutBar() {
           background: "#111827",
           color: "#fff",
           fontWeight: 600,
-          cursor: "pointer"
+          cursor: loggingOut ? "progress" : "pointer"
         }}
       >
+        {loggingOut && <Spinner />}
         Logout
       </button>
     </div>

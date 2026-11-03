@@ -1,13 +1,17 @@
 import { Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthProvider";
+import { PageLoader } from "../components/Loading";
+
+// Both waits, for the session and then the profile, show the same thing, so the text doesn't change halfway.
+const OPENING = "Duke hapur PROMAN…";
 
 export default function ProtectedRoute({ children }) {
   const { session, profileStatus, loading } = useAuth();
 
   // Still resolving auth → WAIT
   if (loading) {
-    return <div style={{ padding: 24 }}>Checking session…</div>;
+    return <PageLoader text={OPENING} />;
   }
 
   // Not logged in
@@ -17,7 +21,7 @@ export default function ProtectedRoute({ children }) {
 
   // Logged in but profile still loading → WAIT
   if (profileStatus === "loading") {
-    return <div style={{ padding: 24 }}>Loading profile…</div>;
+    return <PageLoader text={OPENING} />;
   }
 
   // No proman_users row, or deactivated
