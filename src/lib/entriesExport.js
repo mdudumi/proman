@@ -12,7 +12,7 @@ import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBa
 export const PDF_ROW_LIMIT = 1000;
 
 const TITLE = "TË DHËNA TË REGJISTRUARA";
-const HEADERS = ["Data", "Kategoria", "Produkti", "Monedha", "Blerësi/Shitësi", "Veprimi", "Sasia (kg)", "Shuma (lekë)", "Kosto/kg"];
+const HEADERS = ["Data", "Kategoria", "Produkti", "Monedha", "Blerësi/Shitësi", "Veprimi", "Sasia (kg)", "Kosto/kg", "Shuma (lekë)"];
 const TJETER_NOTE =
   "Regjistrimet e kategorisë Tjetër (lëvizje parash) llogariten me shumën në lekë, pa sasi (kg) dhe pa kosto për kg.";
 // Without a product filter the totals mix products, so they have no cost per kg, and the
@@ -110,8 +110,8 @@ export function exportEntriesPdf(rows, meta) {
       return [
         ...textCells(row),
         tjeter ? "—" : kg(row.sasia),
-        money(row.shuma_leke),
-        tjeter ? "—" : money(row.kosto_per_njesi)
+        tjeter ? "—" : money(row.kosto_per_njesi),
+        money(row.shuma_leke)
       ];
     }),
     foot: [
@@ -125,8 +125,8 @@ export function exportEntriesPdf(rows, meta) {
       ...lines.map(line => [
         { content: line.label, colSpan: 6, styles: { halign: "left" } },
         { content: line.sasia == null ? "—" : kg(line.sasia), styles: total(line.sasia) },
-        { content: money(line.shuma), styles: totalMoney(line) },
-        { content: line.average == null ? "—" : money(line.average), styles: right }
+        { content: line.average == null ? "—" : money(line.average), styles: right },
+        { content: money(line.shuma), styles: totalMoney(line) }
       ])
     ],
     showFoot: "lastPage",
@@ -203,8 +203,8 @@ export async function exportEntriesExcel(rows, meta) {
     const row = sheet.addRow([
       ...textCells(entry),
       tjeter ? "—" : Number(entry.sasia || 0),
-      Number(entry.shuma_leke || 0),
-      tjeter ? "—" : Number(entry.kosto_per_njesi || 0)
+      tjeter ? "—" : Number(entry.kosto_per_njesi || 0),
+      Number(entry.shuma_leke || 0)
     ]);
     row.eachCell(cell => (cell.border = border("E2E8F0")));
     formatNumbers(row);
@@ -212,13 +212,13 @@ export async function exportEntriesExcel(rows, meta) {
 
   sheet.addRow([]);
   for (const line of lines) {
-    const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia ?? "—", line.shuma, line.average ?? "—"]);
+    const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia ?? "—", line.average ?? "—", line.shuma]);
     sheet.mergeCells(row.number, 1, row.number, 6);
     row.eachCell(cell => {
-      // The Diferenca line is red where it's negative (as in the PDF), and its lekë (column 8)
+      // The Diferenca line is red where it's negative (as in the PDF), and its lekë (column 9)
       // green for a profit.
       const negative = typeof cell.value === "number" && cell.value < 0;
-      const profit = line.difference && cell.col === 8 && cell.value > 0;
+      const profit = line.difference && cell.col === 9 && cell.value > 0;
       cell.font = { bold: true, color: { argb: negative ? "B91C1C" : profit ? "15803D" : "0F172A" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "DBE9F6" } };
       cell.border = border("94A3B8");
@@ -226,7 +226,7 @@ export async function exportEntriesExcel(rows, meta) {
     formatNumbers(row);
   }
 
-  [12, 16, 28, 14, 26, 14, 14, 18, 12].forEach((width, i) => (sheet.getColumn(i + 1).width = width));
+  [12, 16, 28, 14, 26, 14, 14, 12, 18].forEach((width, i) => (sheet.getColumn(i + 1).width = width));
 
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(
