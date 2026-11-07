@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { entryTotals, fetchEntryTotals, selectionFilters, totalsLines } from "../lib/ditorEntries";
-import { formatMoney, withKg } from "../lib/format";
+import { formatMoney, withKg, withLeke } from "../lib/format";
 import { Skeleton } from "./Loading";
 
 // The dashboard table's columns: the label spans the first six (Data … Veprimi),
@@ -21,15 +21,18 @@ const SELECTION_HINTS = {
 
 // The difference line's lekë: red for a loss (more bought than sold), green for a profit.
 const moneyClass = line => (line.shuma < 0 ? " neg" : line.difference && line.shuma > 0 ? " pos" : "");
+// The difference line also puts a "+" before gains, next to the "-" losses already have, so it
+// reads the same without its colours.
+const plus = (line, value) => (line.difference && value > 0 ? "+" : "");
 
 function TotalsRow({ line, oneProduct, hints }) {
   return (
     <tr className={line.difference ? "dtTotalsDiff" : undefined}>
       <td colSpan={LABEL_COLUMNS}>{line.label}</td>
       <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={line.sasia == null ? hints.diffKg : TJETER_HINT}>
-        {line.sasia == null ? "—" : withKg(line.sasia)}
+        {line.sasia == null ? "—" : plus(line, line.sasia) + withKg(line.sasia)}
       </td>
-      <td className={`num${moneyClass(line)}`}>{formatMoney(line.shuma)}</td>
+      <td className={`num${moneyClass(line)}`}>{plus(line, line.shuma) + withLeke(line.shuma)}</td>
       <td className="num" title={line.difference ? undefined : oneProduct ? TJETER_HINT : hints.average}>
         {line.average == null ? "—" : formatMoney(line.average)}
       </td>
