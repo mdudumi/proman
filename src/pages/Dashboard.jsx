@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import DitorTable from "../components/DitorTable";
 import DitorForm from "../components/DitorForm";
 import Modal from "../components/Modal";
@@ -18,7 +18,10 @@ export default function Dashboard() {
   return (
     <div className="main main--single">
       <div className="right right--full">
-        <div className="rightTitle">Të dhëna të regjistruara</div>
+        <div className="pageHead">
+          <div className="rightTitle">Të dhëna të regjistruara</div>
+          <Link to="/produktet" className="app-btn">Produktet</Link>
+        </div>
         <div className="rightBody">
           <DitorTable refreshKey={refreshKey} />
         </div>

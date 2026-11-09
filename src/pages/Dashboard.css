@@ -163,6 +163,19 @@ body{
   margin:2px 0 10px 2px;
 }
 
+/* the page title, with a button to another page on the right */
+.pageHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:2px 0 10px 2px;
+}
+
+.pageHead .rightTitle{
+  margin:0;
+}
+
 .rightBody{
   min-width:0;
   width:100%;

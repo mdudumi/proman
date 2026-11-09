@@ -1,0 +1,45 @@
+/* The products page borrows the dashboard table's look (DitorTable.css); only what it adds is here. */
+
+/* Column headers are buttons that sort; numbers sit on the right, like their cells */
+.dtTable thead th.num{
+  text-align:right;
+}
+
+.pdSort{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:0;
+  border:0;
+  background:none;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+}
+
+.pdSort:hover{
+  color:#6ea8ff;
+}
+
+.pdSort:focus-visible{
+  outline:2px solid #6ea8ff;
+  outline-offset:2px;
+  border-radius:4px;
+}
+
+/* the arrow's room is always there, so sorting doesn't shift the columns */
+.pdArrow{
+  display:inline-block;
+  width:1em;
+  font-size:10px;
+  text-align:left;
+}
+
+/* gains and losses in the body, as in the dashboard's totals */
+.dtTable tbody td.neg{
+  color:#ff8a8a;
+}
+
+.dtTable tbody td.pos{
+  color:#6ee7a0;
+}
