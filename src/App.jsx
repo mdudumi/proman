@@ -4,6 +4,7 @@ import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import KategoriaAdmin from "./pages/KategoriaAdmin.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Produktet from "./pages/Produktet.jsx";
 import DitorReport from "./components/DitorReport";
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/produktet" element={<Produktet />} />
         <Route path="/admin/kategoria" element={<KategoriaAdmin />} />
         <Route path="/ditor-report" element={<DitorReport />} />
       </Route>
