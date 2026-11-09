@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchFilterOptions, withFilter } from "../lib/ditorEntries";
-import { fetchProducts, productTotals, productsWithoutMovement, sortProducts } from "../lib/produktet";
+import { fetchProducts, productTotals, sortProducts } from "../lib/produktet";
 import { formatMoney, withKg, withLeke } from "../lib/format";
 import useFetched from "../lib/useFetched";
 import DatePicker from "../components/DatePicker";
@@ -42,7 +42,6 @@ const profitClass = value => (value < 0 ? " neg" : value > 0 ? " pos" : "");
 
 export default function Produktet() {
   const [filters, setFilters] = useState(NO_FILTERS);
-  const [includeEmpty, setIncludeEmpty] = useState(false);
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const [options, setOptions] = useState({ kategorite: [], produkte: [], monedha: [], bleresit: [] });
   // The filter dropdowns show placeholders until their options arrive.
@@ -66,11 +65,7 @@ export default function Produktet() {
   const loading = !loadError && (!products.loaded || Boolean(products.error));
   const refreshing = !loading && !loadError && products.stale;
 
-  const rows = useMemo(() => {
-    const found = products.data ?? [];
-    const idle = includeEmpty ? productsWithoutMovement(found, options.produkte, options.kategorite, filters) : [];
-    return sortProducts([...found, ...idle], sort);
-  }, [products.data, includeEmpty, options, filters, sort]);
+  const rows = useMemo(() => sortProducts(products.data ?? [], sort), [products.data, sort]);
   const totals = useMemo(() => productTotals(rows), [rows]);
 
   function setF(name, value) {
@@ -79,7 +74,6 @@ export default function Produktet() {
 
   function resetFilters() {
     setFilters(NO_FILTERS);
-    setIncludeEmpty(false);
   }
 
   function sortBy(column) {
@@ -160,13 +154,6 @@ export default function Produktet() {
                     placeholder="All"
                     loading={lookupsLoading}
                   />
-                </div>
-
-                <div>
-                  <label className="pdCheck" title="Shfaq edhe produktet pa asnjë lëvizje me këto filtra">
-                    <input type="checkbox" checked={includeEmpty} onChange={event => setIncludeEmpty(event.target.checked)} />
-                    Edhe pa lëvizje
-                  </label>
                 </div>
 
                 <div className="dtResetBox">

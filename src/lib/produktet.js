@@ -58,30 +58,6 @@ export async function fetchProducts(filters) {
   );
 }
 
-/**
- * The active products with no entries for the current filters, as rows of zeros, narrowed by the
- * Kategoria and Produkti filters. `produkte` and `kategorite` are the lists behind the dropdowns.
- */
-export function productsWithoutMovement(rows, produkte, kategorite, filters) {
-  const seen = new Set(rows.map(row => row.produktiId));
-  return produkte
-    .filter(p => !seen.has(p.id))
-    .filter(p => !filters.kategoria_id || String(p.kategoria_id) === String(filters.kategoria_id))
-    .filter(p => !filters.produkti_id || String(p.id) === String(filters.produkti_id))
-    .map(p =>
-      productRow({
-        produktiId: p.id,
-        kategoriaId: p.kategoria_id,
-        produkti: p.name,
-        kategoria: kategorite.find(k => String(k.id) === String(p.kategoria_id))?.name,
-        hyrjeSasia: 0,
-        hyrjeShuma: 0,
-        daljeSasia: 0,
-        daljeShuma: 0
-      })
-    );
-}
-
 const byCategoryAndName = (a, b) => a.kategoria.localeCompare(b.kategoria) || a.produkti.localeCompare(b.produkti);
 
 /**
