@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import { CATEGORY_IDS } from "./categoryIds";
+import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "./categoryIds";
 
 // What the dashboard shows for each entry.
 const ENTRY_SELECT = `
@@ -48,6 +48,55 @@ export async function fetchAllEntries(filters) {
     all.push(...data);
     if (data.length < BATCH_SIZE) return all;
   }
+}
+
+// The lists behind the filter dropdowns, shared by the dashboard and the products page.
+// Each list is empty when its query fails, and the failure is logged.
+export async function fetchFilterOptions() {
+  const [kategoriteRes, monedhaRes, bleresitRes, produkteRes] = await Promise.all([
+    supabase.from("kategoria").select("id,name").order("name"),
+    supabase
+      .from("kategoria_list")
+      .select("id,name")
+      .eq("kategoria_id", CATEGORY_IDS.MONEDHA)
+      .eq("is_active", true)
+      .order("sort_order"),
+    supabase
+      .from("kategoria_list")
+      .select("id,name")
+      .eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI)
+      .eq("is_active", true)
+      .order("sort_order"),
+    // Either filter can be picked first: a category narrows the product list, a product fills in its category.
+    supabase
+      .from("kategoria_list")
+      .select("id,name,kategoria_id")
+      .eq("is_active", true)
+      .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
+      .order("name")
+  ]);
+  [kategoriteRes, monedhaRes, bleresitRes, produkteRes].forEach(res => res.error && console.error(res.error));
+  return {
+    kategorite: kategoriteRes.data || [],
+    monedha: monedhaRes.data || [],
+    bleresit: bleresitRes.data || [],
+    produkte: produkteRes.data || []
+  };
+}
+
+// The filters after one changes. Picking a product fills in its category, and a new category
+// clears a product that doesn't belong to it.
+export function withFilter(filters, name, value, produkte) {
+  if (name === "produkti_id") {
+    const produkti = produkte.find(p => String(p.id) === String(value));
+    return { ...filters, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? filters.kategoria_id };
+  }
+  if (name === "kategoria_id") {
+    const produkti = produkte.find(p => String(p.id) === String(filters.produkti_id));
+    const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
+    return { ...filters, kategoria_id: value, produkti_id: keepProdukti ? filters.produkti_id : "" };
+  }
+  return { ...filters, [name]: value };
 }
 
 // Tjetër entries are money movements (reconciliations, bank, cash, VAT), not goods.

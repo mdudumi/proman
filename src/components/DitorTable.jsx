@@ -1,7 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
-import { byEntryOrder, entriesQuery, fetchAllEntries, isTjeterEntry, selectionFilters } from "../lib/ditorEntries";
+import {
+  byEntryOrder,
+  entriesQuery,
+  fetchAllEntries,
+  fetchFilterOptions,
+  isTjeterEntry,
+  selectionFilters,
+  withFilter
+} from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
 import { formatMoney, withKg } from "../lib/format";
 import Modal from "./Modal";
@@ -66,36 +73,12 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
-    Promise.all([
-      supabase
-        .from("kategoria")
-        .select("id,name")
-        .order("name"),
-      supabase
-        .from("kategoria_list")
-        .select("id,name")
-        .eq("kategoria_id", CATEGORY_IDS.MONEDHA)
-        .eq("is_active", true)
-        .order("sort_order"),
-      supabase
-        .from("kategoria_list")
-        .select("id,name")
-        .eq("kategoria_id", CATEGORY_IDS.BLERESI_SHITESI)
-        .eq("is_active", true)
-        .order("sort_order"),
-      // Either filter can be picked first: a category narrows the product list, a product fills in its category.
-      supabase
-        .from("kategoria_list")
-        .select("id,name,kategoria_id")
-        .eq("is_active", true)
-        .not("kategoria_id", "in", `(${NOT_ENTRY_CATEGORY_IDS.join(",")})`)
-        .order("name")
-    ])
-      .then(([kategoriteRes, monedhaRes, bleresitRes, produkteRes]) => {
-        setKategorite(kategoriteRes.data || []);
-        setMonedha(monedhaRes.data || []);
-        setBleresit(bleresitRes.data || []);
-        setProdukte(produkteRes.data || []);
+    fetchFilterOptions()
+      .then(options => {
+        setKategorite(options.kategorite);
+        setMonedha(options.monedha);
+        setBleresit(options.bleresit);
+        setProdukte(options.produkte);
       })
       .catch(err => console.error(err))
       .finally(() => setLookupsLoading(false));
@@ -162,19 +145,7 @@ export default function DitorTable({ refreshKey = 0 }) {
   function setF(name, value) {
     setPage(1);
     setSelected({});
-    setFilters(prev => {
-      if (name === "produkti_id") {
-        const produkti = produkte.find(p => String(p.id) === String(value));
-        return { ...prev, produkti_id: value, kategoria_id: produkti?.kategoria_id ?? prev.kategoria_id };
-      }
-      if (name === "kategoria_id") {
-        // Keep the product only if it belongs to the new category.
-        const produkti = produkte.find(p => String(p.id) === String(prev.produkti_id));
-        const keepProdukti = produkti && String(produkti.kategoria_id) === String(value);
-        return { ...prev, kategoria_id: value, produkti_id: keepProdukti ? prev.produkti_id : "" };
-      }
-      return { ...prev, [name]: value };
-    });
+    setFilters(prev => withFilter(prev, name, value, produkte));
   }
 
   function resetFilters() {
