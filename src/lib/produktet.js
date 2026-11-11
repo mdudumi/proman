@@ -8,26 +8,21 @@ import { CATEGORY_IDS } from "./categoryIds";
 const number = value => Number(value || 0);
 const round = (value, places) => Math.round(value * 10 ** places) / 10 ** places || 0;
 
-// A product's row from its kilograms and lekë in each direction. Tjetër entries are money
-// movements, so for them every kg figure is null: their lekë stay, and nothing counts as kg.
-function productRow({ produktiId, kategoriaId, produkti, hyrjeSasia, hyrjeShuma, daljeSasia, daljeShuma }) {
-  const tjeter = kategoriaId === CATEGORY_IDS.TJETER;
-  const kg = value => (tjeter ? null : value);
-  const perKg = (shuma, sasia) => (tjeter || !sasia ? null : shuma / sasia);
+// A product's row from its kilograms and lekë in each direction.
+function productRow({ produktiId, produkti, hyrjeSasia, hyrjeShuma, daljeSasia, daljeShuma }) {
+  const perKg = (shuma, sasia) => (sasia ? shuma / sasia : null);
   // What's left in the warehouse: Hyrje minus Dalje, rounded and made 0 if -0
-  const stockKg = kg(round(hyrjeSasia - daljeSasia, 3));
+  const stockKg = round(hyrjeSasia - daljeSasia, 3);
   const kostoHyrje = perKg(hyrjeShuma, hyrjeSasia);
   return {
     produktiId,
-    kategoriaId,
     produkti: produkti || "Pa produkt",
-    tjeter,
-    hyrjeKg: kg(hyrjeSasia),
-    daljeKg: kg(daljeSasia),
+    hyrjeKg: hyrjeSasia,
+    daljeKg: daljeSasia,
     stockKg,
     // What the stock is worth: the kg left times the price per kg it was bought for (never the
     // selling price). Null without a purchase price, since there's nothing to price it by.
-    stockValue: stockKg == null || kostoHyrje == null ? null : round(stockKg * kostoHyrje, 2),
+    stockValue: kostoHyrje == null ? null : round(stockKg * kostoHyrje, 2),
     kostoHyrje,
     kostoDalje: perKg(daljeShuma, daljeSasia),
     hyrjeShuma,
@@ -37,7 +32,10 @@ function productRow({ produktiId, kategoriaId, produkti, hyrjeSasia, hyrjeShuma,
   };
 }
 
-/** Every product with entries matching the filters, with its kilograms and lekë in and out. */
+/**
+ * Every product with entries matching the filters, with its kilograms and lekë in and out.
+ * Tjetër isn't listed: its entries are money movements, not goods, so it has no kg to show.
+ */
 export async function fetchProducts(filters) {
   const { data, error } = await supabase.rpc("rpc_produktet", {
     p_from_date: filters.fromDate || null,
@@ -48,17 +46,18 @@ export async function fetchProducts(filters) {
     p_bleresi_id: filters.bleresi_id || null
   });
   if (error) throw error;
-  return data.map(row =>
-    productRow({
-      produktiId: row.produkti_id,
-      kategoriaId: row.kategoria_id,
-      produkti: row.produkti,
-      hyrjeSasia: number(row.hyrje_sasia),
-      hyrjeShuma: number(row.hyrje_shuma),
-      daljeSasia: number(row.dalje_sasia),
-      daljeShuma: number(row.dalje_shuma)
-    })
-  );
+  return data
+    .filter(row => row.kategoria_id !== CATEGORY_IDS.TJETER)
+    .map(row =>
+      productRow({
+        produktiId: row.produkti_id,
+        produkti: row.produkti,
+        hyrjeSasia: number(row.hyrje_sasia),
+        hyrjeShuma: number(row.hyrje_shuma),
+        daljeSasia: number(row.dalje_sasia),
+        daljeShuma: number(row.dalje_shuma)
+      })
+    );
 }
 
 const byName = (a, b) => a.produkti.localeCompare(b.produkti);
@@ -81,7 +80,7 @@ export function sortProducts(rows, { key, dir }) {
   });
 }
 
-/** The footer: kilograms and lekë added up over the rows. Kg are goods only, as Tjetër rows have none. */
+/** The footer: kilograms and lekë added up over the rows. */
 export function productTotals(rows) {
   const sum = pick => rows.reduce((total, row) => total + (pick(row) ?? 0), 0);
   const hyrjeShuma = sum(row => row.hyrjeShuma);
@@ -90,6 +89,7 @@ export function productTotals(rows) {
     count: rows.length,
     hyrjeKg: round(sum(row => row.hyrjeKg), 3),
     daljeKg: round(sum(row => row.daljeKg), 3),
+    stockKg: round(sum(row => row.stockKg), 3),
     stockValue: round(sum(row => row.stockValue), 2),
     hyrjeShuma: round(hyrjeShuma, 2),
     daljeShuma: round(daljeShuma, 2),
