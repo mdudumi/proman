@@ -16,7 +16,6 @@ import "./Produktet.css";
 // original order of the rows.
 const COLUMNS = [
   { key: "produkti", label: "Produkti", type: "text" },
-  { key: "kategoria", label: "Kategoria", type: "text" },
   { key: "hyrjeKg", label: "Hyrje (kg)", type: "num" },
   { key: "daljeKg", label: "Dalje (kg)", type: "num" },
   { key: "stockKg", label: "Në magazinë (kg)", type: "num" },
@@ -211,7 +210,6 @@ export default function Produktet() {
                   {!loading && !loadError && rows.map(row => (
                     <tr key={row.produktiId ?? "pa-produkt"}>
                       <td title={row.produkti}>{row.produkti}</td>
-                      <td title={row.kategoria}>{row.kategoria}</td>
                       <td className="num" title={tjeterHint(row)}>{cell(row, row.hyrjeKg, withKg)}</td>
                       <td className="num" title={tjeterHint(row)}>{cell(row, row.daljeKg, withKg)}</td>
                       <td className={`num${row.tjeter ? "" : row.stockKg < 0 ? " neg" : ""}`} title={tjeterHint(row)}>
@@ -233,7 +231,7 @@ export default function Produktet() {
                 {!loading && !loadError && rows.length > 0 && (
                   <tfoot className={`dtTotals${refreshing ? " is-stale" : ""}`}>
                     <tr>
-                      <td colSpan={2}>
+                      <td>
                         Totali ({totals.count.toLocaleString("en-US")} {totals.count === 1 ? "produkt" : "produkte"})
                       </td>
                       <td className="num">{withKg(totals.hyrjeKg)}</td>

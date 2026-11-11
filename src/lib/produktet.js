@@ -10,7 +10,7 @@ const round = (value, places) => Math.round(value * 10 ** places) / 10 ** places
 
 // A product's row from its kilograms and lekë in each direction. Tjetër entries are money
 // movements, so for them every kg figure is null: their lekë stay, and nothing counts as kg.
-function productRow({ produktiId, kategoriaId, produkti, kategoria, hyrjeSasia, hyrjeShuma, daljeSasia, daljeShuma }) {
+function productRow({ produktiId, kategoriaId, produkti, hyrjeSasia, hyrjeShuma, daljeSasia, daljeShuma }) {
   const tjeter = kategoriaId === CATEGORY_IDS.TJETER;
   const kg = value => (tjeter ? null : value);
   const perKg = (shuma, sasia) => (tjeter || !sasia ? null : shuma / sasia);
@@ -18,7 +18,6 @@ function productRow({ produktiId, kategoriaId, produkti, kategoria, hyrjeSasia, 
     produktiId,
     kategoriaId,
     produkti: produkti || "Pa produkt",
-    kategoria: kategoria || "",
     tjeter,
     hyrjeKg: kg(hyrjeSasia),
     daljeKg: kg(daljeSasia),
@@ -49,7 +48,6 @@ export async function fetchProducts(filters) {
       produktiId: row.produkti_id,
       kategoriaId: row.kategoria_id,
       produkti: row.produkti,
-      kategoria: row.kategoria,
       hyrjeSasia: number(row.hyrje_sasia),
       hyrjeShuma: number(row.hyrje_shuma),
       daljeSasia: number(row.dalje_sasia),
@@ -58,23 +56,23 @@ export async function fetchProducts(filters) {
   );
 }
 
-const byCategoryAndName = (a, b) => a.kategoria.localeCompare(b.kategoria) || a.produkti.localeCompare(b.produkti);
+const byName = (a, b) => a.produkti.localeCompare(b.produkti);
 
 /**
  * The rows sorted by `sort` = { key, dir }, with dir "asc" or "desc". Without a key they go by
- * category and product. Rows with nothing in the sorted column (null, shown as "—") come last
- * either way, and equal rows keep the category and product order.
+ * product name. Rows with nothing in the sorted column (null, shown as "—") come last
+ * either way, and equal rows keep the product name order.
  */
 export function sortProducts(rows, { key, dir }) {
   const sorted = [...rows];
-  if (!key) return sorted.sort(byCategoryAndName);
+  if (!key) return sorted.sort(byName);
   const sign = dir === "asc" ? 1 : -1;
   return sorted.sort((a, b) => {
     const x = a[key];
     const y = b[key];
-    if (x == null || y == null) return (x == null) - (y == null) || byCategoryAndName(a, b);
+    if (x == null || y == null) return (x == null) - (y == null) || byName(a, b);
     const order = typeof x === "string" ? x.localeCompare(y) : x - y;
-    return order * sign || byCategoryAndName(a, b);
+    return order * sign || byName(a, b);
   });
 }
 
