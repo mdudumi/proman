@@ -11,8 +11,9 @@ import "../components/DitorTable.css";
 import "./Dashboard.css";
 import "./Produktet.css";
 
-// The columns, left to right: the key of the value in each row, its header, and how it sits and
-// sorts. Text sorts A to Z first and numbers largest first; a second click reverses it.
+// The columns, left to right: the key of the value in each row, its header, and how it sits.
+// Clicking a header sorts by it: A to Z (or smallest first), then Z to A, then back to the
+// original order of the rows.
 const COLUMNS = [
   { key: "produkti", label: "Produkti", type: "text" },
   { key: "kategoria", label: "Kategoria", type: "text" },
@@ -77,11 +78,10 @@ export default function Produktet() {
   }
 
   function sortBy(column) {
-    setSort(prev =>
-      prev.key === column.key
-        ? { key: column.key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key: column.key, dir: column.type === "text" ? "asc" : "desc" }
-    );
+    setSort(prev => {
+      if (prev.key !== column.key) return { key: column.key, dir: "asc" };
+      return prev.dir === "asc" ? { key: column.key, dir: "desc" } : { key: null, dir: "asc" };
+    });
   }
 
   const cell = (row, value, show) => (row.tjeter ? "—" : show(value));
