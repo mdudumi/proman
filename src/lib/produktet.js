@@ -14,6 +14,9 @@ function productRow({ produktiId, kategoriaId, produkti, hyrjeSasia, hyrjeShuma,
   const tjeter = kategoriaId === CATEGORY_IDS.TJETER;
   const kg = value => (tjeter ? null : value);
   const perKg = (shuma, sasia) => (tjeter || !sasia ? null : shuma / sasia);
+  // What's left in the warehouse: Hyrje minus Dalje, rounded and made 0 if -0
+  const stockKg = kg(round(hyrjeSasia - daljeSasia, 3));
+  const kostoHyrje = perKg(hyrjeShuma, hyrjeSasia);
   return {
     produktiId,
     kategoriaId,
@@ -21,9 +24,11 @@ function productRow({ produktiId, kategoriaId, produkti, hyrjeSasia, hyrjeShuma,
     tjeter,
     hyrjeKg: kg(hyrjeSasia),
     daljeKg: kg(daljeSasia),
-    // What's left in the warehouse: Hyrje minus Dalje, rounded and made 0 if -0
-    stockKg: kg(round(hyrjeSasia - daljeSasia, 3)),
-    kostoHyrje: perKg(hyrjeShuma, hyrjeSasia),
+    stockKg,
+    // What the stock is worth: the kg left times the price per kg it was bought for (never the
+    // selling price). Null without a purchase price, since there's nothing to price it by.
+    stockValue: stockKg == null || kostoHyrje == null ? null : round(stockKg * kostoHyrje, 2),
+    kostoHyrje,
     kostoDalje: perKg(daljeShuma, daljeSasia),
     hyrjeShuma,
     daljeShuma,
@@ -85,6 +90,7 @@ export function productTotals(rows) {
     count: rows.length,
     hyrjeKg: round(sum(row => row.hyrjeKg), 3),
     daljeKg: round(sum(row => row.daljeKg), 3),
+    stockValue: round(sum(row => row.stockValue), 2),
     hyrjeShuma: round(hyrjeShuma, 2),
     daljeShuma: round(daljeShuma, 2),
     totali: round(daljeShuma - hyrjeShuma, 2)

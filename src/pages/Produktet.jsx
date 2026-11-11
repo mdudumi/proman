@@ -20,6 +20,7 @@ const COLUMNS = [
   { key: "daljeKg", label: "Dalje (kg)", type: "num" },
   { key: "stockKg", label: "Në magazinë (kg)", type: "num" },
   { key: "kostoHyrje", label: "Kosto/kg hyrje", type: "num" },
+  { key: "stockValue", label: "Vlera në magazinë (lekë)", type: "num" },
   { key: "kostoDalje", label: "Kosto/kg dalje", type: "num" },
   { key: "hyrjeShuma", label: "Shuma hyrje (lekë)", type: "num" },
   { key: "daljeShuma", label: "Shuma dalje (lekë)", type: "num" },
@@ -32,6 +33,7 @@ const ROW_HEIGHT = 41;
 
 // Tjetër entries are money movements: their quantity of 1 isn't kilograms, so they have no kg and no cost per kg.
 const TJETER_HINT = "Tjetër: lëvizje parash, pa sasi në kg dhe pa kosto për kg";
+const NO_PURCHASE_HINT = "Pa blerje, nuk ka çmim blerjeje për ta vlerësuar";
 const FOOTER_HINT = "Nuk llogaritet nga produkte të ndryshme";
 
 const NO_FILTERS = { fromDate: "", toDate: "", kategoria_id: "", produkti_id: "", monedha_id: "", bleresi_id: "" };
@@ -218,6 +220,12 @@ export default function Produktet() {
                       <td className="num" title={tjeterHint(row)}>
                         {row.kostoHyrje == null ? "—" : formatMoney(row.kostoHyrje)}
                       </td>
+                      <td
+                        className={`num${row.stockValue < 0 ? " neg" : ""}`}
+                        title={row.tjeter ? TJETER_HINT : row.stockValue == null ? NO_PURCHASE_HINT : undefined}
+                      >
+                        {row.stockValue == null ? "—" : formatMoney(row.stockValue)}
+                      </td>
                       <td className="num" title={tjeterHint(row)}>
                         {row.kostoDalje == null ? "—" : formatMoney(row.kostoDalje)}
                       </td>
@@ -238,6 +246,7 @@ export default function Produktet() {
                       <td className="num">{withKg(totals.daljeKg)}</td>
                       <td className="num" title={FOOTER_HINT}>—</td>
                       <td className="num" title={FOOTER_HINT}>—</td>
+                      <td className={`num${totals.stockValue < 0 ? " neg" : ""}`}>{withLeke(totals.stockValue)}</td>
                       <td className="num" title={FOOTER_HINT}>—</td>
                       <td className="num">{withLeke(totals.hyrjeShuma)}</td>
                       <td className="num">{withLeke(totals.daljeShuma)}</td>
