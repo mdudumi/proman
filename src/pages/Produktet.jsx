@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { CATEGORY_IDS } from "../lib/categoryIds";
 import { fetchFilterOptions, withFilter } from "../lib/ditorEntries";
 import { fetchProducts, productTotals, sortProducts } from "../lib/produktet";
 import { formatMoney, withKg, withLeke } from "../lib/format";
@@ -11,15 +12,16 @@ import "../components/DitorTable.css";
 import "./Dashboard.css";
 import "./Produktet.css";
 
-// The columns, left to right: the key of the value in each row, its header, and how it sits and
-// sorts. Text sorts A to Z first and numbers largest first; a second click reverses it.
+// The columns, left to right: the key of the value in each row, its header, and how it sits.
+// Clicking a header sorts by it: A to Z (or smallest first), then Z to A, then back to the
+// original order of the rows.
 const COLUMNS = [
   { key: "produkti", label: "Produkti", type: "text" },
-  { key: "kategoria", label: "Kategoria", type: "text" },
   { key: "hyrjeKg", label: "Hyrje (kg)", type: "num" },
   { key: "daljeKg", label: "Dalje (kg)", type: "num" },
   { key: "stockKg", label: "Në magazinë (kg)", type: "num" },
   { key: "kostoHyrje", label: "Kosto/kg hyrje", type: "num" },
+  { key: "stockValue", label: "Vlera në magazinë (lekë)", type: "num" },
   { key: "kostoDalje", label: "Kosto/kg dalje", type: "num" },
   { key: "hyrjeShuma", label: "Shuma hyrje (lekë)", type: "num" },
   { key: "daljeShuma", label: "Shuma dalje (lekë)", type: "num" },
@@ -30,11 +32,17 @@ const COLUMNS = [
 const SKELETON_COLUMNS = COLUMNS.map(column => column.type);
 const ROW_HEIGHT = 41;
 
-// Tjetër entries are money movements: their quantity of 1 isn't kilograms, so they have no kg and no cost per kg.
-const TJETER_HINT = "Tjetër: lëvizje parash, pa sasi në kg dhe pa kosto për kg";
+const NO_PURCHASE_HINT = "Pa blerje, nuk ka çmim blerjeje për ta vlerësuar";
 const FOOTER_HINT = "Nuk llogaritet nga produkte të ndryshme";
 
 const NO_FILTERS = { fromDate: "", toDate: "", kategoria_id: "", produkti_id: "", monedha_id: "", bleresi_id: "" };
+
+// Tjetër is money movements, not goods, so it isn't offered as a category or a product here.
+const withoutTjeter = options => ({
+  ...options,
+  kategorite: options.kategorite.filter(k => k.id !== CATEGORY_IDS.TJETER),
+  produkte: options.produkte.filter(p => p.kategoria_id !== CATEGORY_IDS.TJETER)
+});
 
 // The Diferenca style: a "+" before gains, next to the "-" that losses already have.
 const plus = value => (value > 0 ? "+" : "");
@@ -49,7 +57,7 @@ export default function Produktet() {
 
   useEffect(() => {
     fetchFilterOptions()
-      .then(setOptions)
+      .then(options => setOptions(withoutTjeter(options)))
       .catch(err => console.error(err))
       .finally(() => setLookupsLoading(false));
   }, []);
@@ -77,15 +85,11 @@ export default function Produktet() {
   }
 
   function sortBy(column) {
-    setSort(prev =>
-      prev.key === column.key
-        ? { key: column.key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key: column.key, dir: column.type === "text" ? "asc" : "desc" }
-    );
+    setSort(prev => {
+      if (prev.key !== column.key) return { key: column.key, dir: "asc" };
+      return prev.dir === "asc" ? { key: column.key, dir: "desc" } : { key: null, dir: "asc" };
+    });
   }
-
-  const cell = (row, value, show) => (row.tjeter ? "—" : show(value));
-  const tjeterHint = row => (row.tjeter ? TJETER_HINT : undefined);
 
   return (
     <div className="main main--single">
@@ -211,18 +215,17 @@ export default function Produktet() {
                   {!loading && !loadError && rows.map(row => (
                     <tr key={row.produktiId ?? "pa-produkt"}>
                       <td title={row.produkti}>{row.produkti}</td>
-                      <td title={row.kategoria}>{row.kategoria}</td>
-                      <td className="num" title={tjeterHint(row)}>{cell(row, row.hyrjeKg, withKg)}</td>
-                      <td className="num" title={tjeterHint(row)}>{cell(row, row.daljeKg, withKg)}</td>
-                      <td className={`num${row.tjeter ? "" : row.stockKg < 0 ? " neg" : ""}`} title={tjeterHint(row)}>
-                        {cell(row, row.stockKg, value => plus(value) + withKg(value))}
+                      <td className="num">{withKg(row.hyrjeKg)}</td>
+                      <td className="num">{withKg(row.daljeKg)}</td>
+                      <td className={`num${row.stockKg < 0 ? " neg" : ""}`}>{plus(row.stockKg) + withKg(row.stockKg)}</td>
+                      <td className="num">{row.kostoHyrje == null ? "—" : formatMoney(row.kostoHyrje)}</td>
+                      <td
+                        className={`num${row.stockValue < 0 ? " neg" : ""}`}
+                        title={row.stockValue == null ? NO_PURCHASE_HINT : undefined}
+                      >
+                        {row.stockValue == null ? "—" : formatMoney(row.stockValue)}
                       </td>
-                      <td className="num" title={tjeterHint(row)}>
-                        {row.kostoHyrje == null ? "—" : formatMoney(row.kostoHyrje)}
-                      </td>
-                      <td className="num" title={tjeterHint(row)}>
-                        {row.kostoDalje == null ? "—" : formatMoney(row.kostoDalje)}
-                      </td>
+                      <td className="num">{row.kostoDalje == null ? "—" : formatMoney(row.kostoDalje)}</td>
                       <td className="num">{formatMoney(row.hyrjeShuma)}</td>
                       <td className="num">{formatMoney(row.daljeShuma)}</td>
                       <td className={`num${profitClass(row.totali)}`}>{plus(row.totali) + formatMoney(row.totali)}</td>
@@ -233,13 +236,14 @@ export default function Produktet() {
                 {!loading && !loadError && rows.length > 0 && (
                   <tfoot className={`dtTotals${refreshing ? " is-stale" : ""}`}>
                     <tr>
-                      <td colSpan={2}>
+                      <td>
                         Totali ({totals.count.toLocaleString("en-US")} {totals.count === 1 ? "produkt" : "produkte"})
                       </td>
                       <td className="num">{withKg(totals.hyrjeKg)}</td>
                       <td className="num">{withKg(totals.daljeKg)}</td>
+                      <td className={`num${totals.stockKg < 0 ? " neg" : ""}`}>{plus(totals.stockKg) + withKg(totals.stockKg)}</td>
                       <td className="num" title={FOOTER_HINT}>—</td>
-                      <td className="num" title={FOOTER_HINT}>—</td>
+                      <td className={`num${totals.stockValue < 0 ? " neg" : ""}`}>{withLeke(totals.stockValue)}</td>
                       <td className="num" title={FOOTER_HINT}>—</td>
                       <td className="num">{withLeke(totals.hyrjeShuma)}</td>
                       <td className="num">{withLeke(totals.daljeShuma)}</td>
