@@ -43,3 +43,23 @@
 .dtTable tbody td.pos{
   color:#6ee7a0;
 }
+
+/* the two download versions, personal and for sharing, each with its Excel and PDF */
+.pdExports{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px 20px;
+}
+
+.pdExportGroup{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.pdExportLabel{
+  font-size:12px;
+  font-weight:800;
+  color:var(--muted);
+}

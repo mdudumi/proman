@@ -5,6 +5,22 @@ import { CATEGORY_IDS } from "./categoryIds";
 // (rpc_produktet, supabase/migrations/20261109_produktet.sql).
 // `filters` is { fromDate, toDate, kategoria_id, produkti_id, monedha_id, bleresi_id }, with "" for "all".
 
+// The page's columns, left to right: the key of the value in each row, its header and how it is
+// formatted. `shared` marks the columns the exports for sharing with others keep: only the
+// kilograms, with no buying or selling prices and no lekë amounts.
+export const PRODUCT_COLUMNS = [
+  { key: "produkti", label: "Produkti", format: "text", shared: true },
+  { key: "hyrjeKg", label: "Hyrje (kg)", format: "kg", shared: true },
+  { key: "daljeKg", label: "Dalje (kg)", format: "kg", shared: true },
+  { key: "stockKg", label: "Në magazinë (kg)", format: "kg", shared: true },
+  { key: "kostoHyrje", label: "Kosto/kg hyrje", format: "money" },
+  { key: "stockValue", label: "Vlera në magazinë (lekë)", format: "money" },
+  { key: "kostoDalje", label: "Kosto/kg dalje", format: "money" },
+  { key: "hyrjeShuma", label: "Shuma hyrje (lekë)", format: "money" },
+  { key: "daljeShuma", label: "Shuma dalje (lekë)", format: "money" },
+  { key: "totali", label: "Totali (lekë)", format: "money" }
+];
+
 const number = value => Number(value || 0);
 const round = (value, places) => Math.round(value * 10 ** places) / 10 ** places || 0;
 
