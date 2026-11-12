@@ -44,6 +44,32 @@
   color:#6ee7a0;
 }
 
+/* the checkbox that shows the table as the version for sharing will be, next to the row count */
+.pdPreview{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-left:12px;
+  padding-left:12px;
+  border-left:1px solid var(--border);
+  font-weight:800;
+  cursor:pointer;
+}
+
+.pdPreview input{
+  width:16px;
+  height:16px;
+  margin:0;
+  accent-color:#6ea8ff;
+  cursor:pointer;
+}
+
+/* with only four columns, the table is kept narrow, like the shared files */
+.dtTable.pdShared{
+  width:auto;
+  min-width:560px;
+}
+
 /* the two download versions, personal and for sharing, each with its Excel and PDF */
 .pdExports{
   display:flex;
