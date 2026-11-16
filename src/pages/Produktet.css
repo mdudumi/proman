@@ -64,10 +64,10 @@
   cursor:pointer;
 }
 
-/* with only four columns, the table is kept narrow, like the shared files */
+/* with only two columns, the table is kept narrow, like the shared files */
 .dtTable.pdShared{
   width:auto;
-  min-width:560px;
+  min-width:420px;
 }
 
 /* the two download versions, personal and for sharing, each with its Excel and PDF */

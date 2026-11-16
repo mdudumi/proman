@@ -8,7 +8,8 @@ import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBa
 
 // Excel and PDF exports of the products page, with the rows as filtered and sorted on screen.
 // The personal version has every column of the table. The version for sharing with others keeps
-// only the kilograms: no buying or selling prices and no lekë amounts (`shared` in PRODUCT_COLUMNS).
+// only the kg in stock: no kg in or out, no buying or selling prices and no lekë amounts
+// (`shared` in PRODUCT_COLUMNS).
 
 const TITLE = "PRODUKTET";
 
