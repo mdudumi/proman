@@ -3,10 +3,10 @@ import { entryTotals, fetchEntryTotals, selectionFilters, totalsLines } from "..
 import { formatMoney, withKg, withLeke } from "../lib/format";
 import { Skeleton } from "./Loading";
 
-// The dashboard table's columns: the label spans the first six (Data … Veprimi),
-// then Sasia, Shuma, Kosto/Njesi, and the column with the edit and delete buttons.
-const LABEL_COLUMNS = 6;
-const ALL_COLUMNS = 10;
+// The dashboard table's columns: the label spans the first seven (the checkbox, then Data …
+// Veprimi), then Sasia, Shuma, Kosto/Njesi, and the column with the edit and delete buttons.
+const LABEL_COLUMNS = 7;
+const ALL_COLUMNS = 11;
 
 const TJETER_HINT = "Pa regjistrimet Tjetër: ato janë lëvizje parash, jo kg";
 // Across products the totals have no cost per kg, and the difference line no kg (totalsLines).
