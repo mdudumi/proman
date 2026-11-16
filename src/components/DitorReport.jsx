@@ -55,10 +55,18 @@ const GROUP_BY_OPTIONS = [
   { key: "veprimi", label: "Grupo sipas Veprimit" }
 ];
 
+// "2025-08-26" -> "26-08-2025"
 const formatDate = value => {
   if (!value) return "";
   const [year, month, day] = String(value).split("-");
-  return year && month && day ? `${day}.${month}.${year}` : value;
+  return year && month && day ? `${day}-${month}-${year}` : value;
+};
+
+// In Excel the date is a real date shown as 26-08-2025, so it still sorts and filters by date.
+const EXCEL_DATE_FORMAT = "dd-mm-yyyy";
+const excelDate = value => {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+  return year && month && day ? new Date(Date.UTC(year, month - 1, day)) : value || "";
 };
 
 const count = n => n.toLocaleString("en-US");
@@ -620,7 +628,7 @@ export default function DitorReport() {
     worksheet.getCell("A1").font = { bold: true, size: 16, color: { argb: "0F172A" } };
     worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
 
-    worksheet.addRow([`Periudha: ${reportPeriod.from} - ${reportPeriod.to}   |   ${rowsLabel}${cut ? `   |   Kujdes: ${cutNote}` : ""}`]);
+    worksheet.addRow([`Periudha: ${formatDate(reportPeriod.from)} – ${formatDate(reportPeriod.to)}   |   ${rowsLabel}${cut ? `   |   Kujdes: ${cutNote}` : ""}`]);
     mergeAcross(2);
     worksheet.getCell("A2").font = { bold: true, size: 11, color: { argb: "334155" } };
 
@@ -668,7 +676,7 @@ export default function DitorReport() {
 
       group.rows.forEach(r => {
         const rowValues = visibleColumns.map(col =>
-          col.key === "data" ? (r.data ?? "") : Number(r[col.key] ?? 0)
+          col.key === "data" ? excelDate(r.data) : Number(r[col.key] ?? 0)
         );
 
         const row = worksheet.addRow(rowValues);
@@ -681,6 +689,7 @@ export default function DitorReport() {
             cell.numFmt = "#,##0.00";
             cell.alignment = { horizontal: "right", vertical: "middle" };
           } else {
+            if (col.key === "data") cell.numFmt = EXCEL_DATE_FORMAT;
             cell.alignment = { horizontal: "left", vertical: "middle" };
           }
         });
@@ -984,7 +993,7 @@ export default function DitorReport() {
             <div className="dr-toolbar-left">
               <div className="dr-section-title">Rezultatet</div>
               <div className="dr-meta">
-                <span><b>Periudha:</b> {reportPeriod.from} - {reportPeriod.to}</span>
+                <span><b>Periudha:</b> {formatDate(reportPeriod.from)} – {formatDate(reportPeriod.to)}</span>
                 <span><b>Rreshta:</b> {hasLoaded ? rowsCount : <Skeleton width={40} />}</span>
                 <span><b>Grupe:</b> {hasLoaded ? groupedRows.length : <Skeleton width={20} />}</span>
               </div>
@@ -1092,7 +1101,7 @@ export default function DitorReport() {
                                   isNum && isNegative(raw) ? "neg" : ""
                                 }`}
                               >
-                                {isNum ? formatNumber(raw) : raw}
+                                {isNum ? formatNumber(raw) : col.key === "data" ? formatDate(raw) : raw}
                               </td>
                             );
                           })}
