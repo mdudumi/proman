@@ -19,11 +19,11 @@ const ROW_HEIGHT = 41;
 const NO_PURCHASE_HINT = "Pa blerje, nuk ka çmim blerjeje për ta vlerësuar";
 const FOOTER_HINT = "Nuk llogaritet nga produkte të ndryshme";
 
-// The two versions of the exports (produktetExport.js): everything in the table, or only the kg,
-// with no prices and no lekë, to hand to others.
+// The two versions of the exports (produktetExport.js): everything in the table, or only the kg
+// in stock, with no prices and no lekë, to hand to others.
 const EXPORT_GROUPS = [
   { shared: false, label: "Personale", hint: "Gjithçka që ka tabela", file: "personale" },
-  { shared: true, label: "Për ndarje", hint: "Pa çmimet e blerjes e të shitjes dhe pa shumat në lekë", file: "per-ndarje" }
+  { shared: true, label: "Për ndarje", hint: "Vetëm kg në magazinë: pa hyrje e dalje, pa çmime dhe pa shuma në lekë", file: "per-ndarje" }
 ];
 
 const NO_FILTERS = { fromDate: "", toDate: "", kategoria_id: "", produkti_id: "", monedha_id: "", bleresi_id: "" };
@@ -91,7 +91,7 @@ export default function Produktet() {
   const [lookupsLoading, setLookupsLoading] = useState(true);
   // Which export is being prepared, as "personale-excel", or "" when none is.
   const [exporting, setExporting] = useState("");
-  // Shows the table as the version for sharing will be: only the kg, no prices and no lekë.
+  // Shows the table as the version for sharing will be: only the kg in stock, no prices and no lekë.
   const [sharedView, setSharedView] = useState(false);
 
   useEffect(() => {
@@ -257,7 +257,7 @@ export default function Produktet() {
                 ) : (
                   <span><strong>{rows.length}</strong> {rows.length === 1 ? "produkt" : "produkte"}</span>
                 )}
-                <label className="pdPreview" title="Shfaq tabelën si do të dalë në versionin për ndarje: vetëm kg, pa çmime e pa shuma">
+                <label className="pdPreview" title="Shfaq tabelën si do të dalë në versionin për ndarje: vetëm kg në magazinë, pa çmime e pa shuma">
                   <input type="checkbox" checked={sharedView} onChange={event => previewShared(event.target.checked)} />
                   Pamje për ndarje
                 </label>

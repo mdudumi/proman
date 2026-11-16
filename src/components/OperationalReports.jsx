@@ -15,7 +15,7 @@ const number = value => Number(value || 0);
 const money = value => number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dateLabel = value => {
   const [year, month, day] = String(value || "").split("-");
-  return year && month && day ? `${day}.${month}.${year}` : value;
+  return year && month && day ? `${day}-${month}-${year}` : value;
 };
 
 // Tjetër entries are money movements (reconciliations, bank, cash, VAT), not goods.
