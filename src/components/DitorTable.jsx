@@ -22,7 +22,7 @@ import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
 
-// The placeholder for the first load: the checkbox, Data … Kosto/Njesi, then the edit and delete
+// The placeholder for the first load: the checkbox, Data … Shuma, then the edit and delete
 // buttons' column. A real row is 51px high, because of those buttons.
 const SKELETON_COLUMNS = ["", "date", "text", "text", "text", "text", "text", "num", "num", "num", ""];
 const ROW_HEIGHT = 51;
@@ -518,8 +518,8 @@ export default function DitorTable({ refreshKey = 0 }) {
               <th>Bleresi/Shitesi</th>
               <th>Veprimi</th>
               <th>Sasia</th>
-              <th>Shuma</th>
               <th>Kosto/Njesi</th>
+              <th>Shuma</th>
               <th></th>
             </tr>
           </thead>
@@ -574,7 +574,6 @@ export default function DitorTable({ refreshKey = 0 }) {
                 <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
                   {isTjeterEntry(r) ? "—" : withKg(r.sasia)}
                 </td>
-                <td className="num">{formatMoney(r.shuma_leke)}</td>
                 <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
                   {isTjeterEntry(r)
                     ? "—"
@@ -582,6 +581,7 @@ export default function DitorTable({ refreshKey = 0 }) {
                       ? formatMoney(r.kosto_per_njesi)
                       : ""}
                 </td>
+                <td className="num">{formatMoney(r.shuma_leke)}</td>
                 <td className="actions">
                   <button onClick={() => setEditRow(r)} disabled={deletingId === r.id}>✏️</button>
                   <button

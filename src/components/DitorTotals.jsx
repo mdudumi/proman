@@ -4,7 +4,7 @@ import { formatMoney, withKg, withLeke } from "../lib/format";
 import { Skeleton } from "./Loading";
 
 // The dashboard table's columns: the label spans the first seven (the checkbox, then Data …
-// Veprimi), then Sasia, Shuma, Kosto/Njesi, and the column with the edit and delete buttons.
+// Veprimi), then Sasia, Kosto/Njesi, Shuma, and the column with the edit and delete buttons.
 const LABEL_COLUMNS = 7;
 const ALL_COLUMNS = 11;
 
@@ -32,10 +32,10 @@ function TotalsRow({ line, oneProduct, hints }) {
       <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={line.sasia == null ? hints.diffKg : TJETER_HINT}>
         {line.sasia == null ? "—" : plus(line, line.sasia) + withKg(line.sasia)}
       </td>
-      <td className={`num${moneyClass(line)}`}>{plus(line, line.shuma) + withLeke(line.shuma)}</td>
       <td className="num" title={line.difference ? undefined : oneProduct ? TJETER_HINT : hints.average}>
         {line.average == null ? "—" : formatMoney(line.average)}
       </td>
+      <td className={`num${moneyClass(line)}`}>{plus(line, line.shuma) + withLeke(line.shuma)}</td>
       <td />
     </tr>
   );
@@ -96,8 +96,8 @@ export default function DitorTotals({ filters, reloadKey, showFilterTotals, sele
               <Skeleton width={190} />
             </td>
             <td className="num"><Skeleton width={80} /></td>
-            <td className="num"><Skeleton width={100} /></td>
             <td className="num"><Skeleton width={50} /></td>
+            <td className="num"><Skeleton width={100} /></td>
             <td />
           </tr>
         ))}

@@ -6,18 +6,19 @@ import { CATEGORY_IDS } from "./categoryIds";
 // `filters` is { fromDate, toDate, kategoria_id, produkti_id, monedha_id, bleresi_id }, with "" for "all".
 
 // The page's columns, left to right: the key of the value in each row, its header and how it is
-// formatted. `shared` marks the columns the exports for sharing with others keep: only the kg in
+// formatted. Each direction reads kg, then price per kg, then lekë, the way the lekë are worked
+// out. `shared` marks the columns the exports for sharing with others keep: only the kg in
 // stock, with no kg in or out, no buying or selling prices and no lekë amounts.
 export const PRODUCT_COLUMNS = [
   { key: "produkti", label: "Produkti", format: "text", shared: true },
   { key: "hyrjeKg", label: "Hyrje (kg)", format: "kg" },
-  { key: "daljeKg", label: "Dalje (kg)", format: "kg" },
-  { key: "stockKg", label: "Në magazinë (kg)", format: "kg", shared: true },
   { key: "kostoHyrje", label: "Kosto/kg hyrje", format: "money" },
-  { key: "stockValue", label: "Vlera në magazinë (lekë)", format: "money" },
-  { key: "kostoDalje", label: "Kosto/kg dalje", format: "money" },
   { key: "hyrjeShuma", label: "Shuma hyrje (lekë)", format: "money" },
+  { key: "daljeKg", label: "Dalje (kg)", format: "kg" },
+  { key: "kostoDalje", label: "Kosto/kg dalje", format: "money" },
   { key: "daljeShuma", label: "Shuma dalje (lekë)", format: "money" },
+  { key: "stockKg", label: "Në magazinë (kg)", format: "kg", shared: true },
+  { key: "stockValue", label: "Vlera në magazinë (lekë)", format: "money" },
   { key: "totali", label: "Totali (lekë)", format: "money" }
 ];
 
