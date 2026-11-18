@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { entryTotals, fetchTotalsWithTjeter, selectionFilters, totalsLines } from "../lib/ditorEntries";
+import { entryTotals, fetchEntryTotals, selectionFilters, totalsLines } from "../lib/ditorEntries";
 import { formatMoney, plus, withKg, withLeke } from "../lib/format";
 import { Skeleton } from "./Loading";
 
@@ -9,7 +9,6 @@ const LABEL_COLUMNS = 7;
 const ALL_COLUMNS = 11;
 
 const TJETER_HINT = "Pa regjistrimet Tjetër: ato janë lëvizje parash, jo kg";
-const TJETER_LINE_HINT = "Tjetër: Hyrje është para e arkëtuar (+), Dalje para e paguar (-). Pa kg dhe pa kosto për kg";
 // Across products the totals have no cost per kg, and the difference line no kg (totalsLines).
 const FILTER_HINTS = {
   average: "Kosto për kg shfaqet vetëm kur zgjidhet një produkt",
@@ -20,25 +19,23 @@ const SELECTION_HINTS = {
   diffKg: "Diferenca në kg shfaqet vetëm kur të zgjedhurat janë të një produkti"
 };
 
-// The signed lines' lekë (Tjetër and the difference): red for a loss, green for a profit.
-const moneyClass = line => (line.shuma < 0 ? " neg" : line.signed && line.shuma > 0 ? " pos" : "");
+// The difference line's lekë: red for a loss (more bought than sold), green for a profit.
+const moneyClass = line => (line.shuma < 0 ? " neg" : line.difference && line.shuma > 0 ? " pos" : "");
 
-// The signed lines also put a "+" before gains, next to the "-" losses already have, so they read
-// the same without their colours. Money that came in (Totali Dalje) gets the "+" too.
+// The difference line also puts a "+" before gains, next to the "-" losses already have, so it
+// reads the same without its colours. Money that came in (Totali Dalje) gets the "+" too.
 function TotalsRow({ line, oneProduct, hints }) {
-  const sasiaHint = line.tjeter ? TJETER_LINE_HINT : line.sasia == null ? hints.diffKg : TJETER_HINT;
-  const averageHint = line.tjeter ? TJETER_LINE_HINT : line.difference ? undefined : oneProduct ? TJETER_HINT : hints.average;
   return (
     <tr className={line.difference ? "dtTotalsDiff" : undefined}>
-      <td colSpan={LABEL_COLUMNS} title={line.tjeter ? TJETER_LINE_HINT : undefined}>{line.label}</td>
-      <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={sasiaHint}>
-        {line.sasia == null ? "—" : (line.signed ? plus(line.sasia) : "") + withKg(line.sasia)}
+      <td colSpan={LABEL_COLUMNS}>{line.label}</td>
+      <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={line.sasia == null ? hints.diffKg : TJETER_HINT}>
+        {line.sasia == null ? "—" : (line.difference ? plus(line.sasia) : "") + withKg(line.sasia)}
       </td>
-      <td className="num" title={averageHint}>
+      <td className="num" title={line.difference ? undefined : oneProduct ? TJETER_HINT : hints.average}>
         {line.average == null ? "—" : formatMoney(line.average)}
       </td>
       <td className={`num${moneyClass(line)}`}>
-        {(line.signed || line.moneyIn ? plus(line.shuma) : "") + withLeke(line.shuma)}
+        {(line.difference || line.moneyIn ? plus(line.shuma) : "") + withLeke(line.shuma)}
       </td>
       <td />
     </tr>
@@ -47,7 +44,7 @@ function TotalsRow({ line, oneProduct, hints }) {
 
 /**
  * Totals rows under the dashboard table: Hyrje and Dalje, or only the action the Veprimi filter
- * picks, Tjetër, and their difference (totalsLines).
+ * picks, and their difference.
  * While rows are selected (`selectedRows`), the lines add up only those. Otherwise, while
  * `showFilterTotals`, they cover every entry matching the filters, not only the page on screen;
  * they keep loading during a selection, so they're ready when it's cleared.
@@ -62,7 +59,7 @@ export default function DitorTotals({ filters, reloadKey, showFilterTotals, sele
   useEffect(() => {
     if (!showFilterTotals) return;
     let current = true;
-    fetchTotalsWithTjeter(filters).then(
+    fetchEntryTotals(filters).then(
       totals => current && setResult({ key, filters, totals }),
       err => current && setResult({ key, error: err.message || String(err) })
     );
