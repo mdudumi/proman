@@ -5,12 +5,13 @@ import {
   entriesQuery,
   fetchAllEntries,
   fetchFilterOptions,
+  isMoneyIn,
   isTjeterEntry,
   selectionFilters,
   withFilter
 } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
-import { formatMoney, withKg } from "../lib/format";
+import { formatMoney, plus, withKg } from "../lib/format";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
@@ -581,7 +582,7 @@ export default function DitorTable({ refreshKey = 0 }) {
                       ? formatMoney(r.kosto_per_njesi)
                       : ""}
                 </td>
-                <td className="num">{formatMoney(r.shuma_leke)}</td>
+                <td className="num">{(isMoneyIn(r) ? plus(r.shuma_leke) : "") + formatMoney(r.shuma_leke)}</td>
                 <td className="actions">
                   <button onClick={() => setEditRow(r)} disabled={deletingId === r.id}>✏️</button>
                   <button

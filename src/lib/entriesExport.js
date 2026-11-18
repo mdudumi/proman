@@ -2,8 +2,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { entryTotals, isTjeterEntry, totalsLines } from "./ditorEntries";
-import { formatKg as kg, formatMoney as money } from "./format";
+import { entryTotals, isMoneyIn, isTjeterEntry, totalsLines } from "./ditorEntries";
+import { SIGNED_MONEY_FORMAT, formatKg as kg, formatMoney as money, plus } from "./format";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "./pdfPage";
 
 // Excel and PDF exports of the dashboard entries that match the filters.
@@ -14,7 +14,10 @@ export const PDF_ROW_LIMIT = 1000;
 const TITLE = "TË DHËNA TË REGJISTRUARA";
 const HEADERS = ["Data", "Kategoria", "Produkti", "Monedha", "Blerësi/Shitësi", "Veprimi", "Sasia (kg)", "Kosto/kg", "Shuma (lekë)"];
 const TJETER_NOTE =
-  "Regjistrimet e kategorisë Tjetër (lëvizje parash) llogariten me shumën në lekë, pa sasi (kg) dhe pa kosto për kg.";
+  "Regjistrimet e kategorisë Tjetër (lëvizje parash) janë pa sasi (kg) dhe pa kosto për kg. Në totale kanë rreshtin e tyre: " +
+  "Hyrje është para e arkëtuar (+), Dalje para e paguar (-).";
+// The kg of the Diferenca line in Excel, with its sign, as SIGNED_MONEY_FORMAT is for lekë.
+const SIGNED_KG_FORMAT = "+#,##0.00#;-#,##0.00#;0.00";
 // Without a product filter the totals mix products, so they have no cost per kg, and the
 // difference line no kg (totalsLines).
 function productNote(lines, selected) {
@@ -97,11 +100,14 @@ export function exportEntriesPdf(rows, meta) {
   }
 
   const right = { halign: "right" };
-  // The Diferenca line is red where it's negative: lekë where more was spent than earned, kg
-  // where more went out than came in.
+  // The signed lines (Tjetër, Diferenca) are red where they're negative: lekë where more was
+  // spent than earned, kg where more went out than came in.
   const total = value => (value < 0 ? { ...right, textColor: [185, 28, 28] } : right);
-  // …and its lekë green for a profit.
-  const totalMoney = line => (line.difference && line.shuma > 0 ? { ...right, textColor: [21, 128, 61] } : total(line.shuma));
+  // …and their lekë green for a profit.
+  const totalMoney = line => (line.signed && line.shuma > 0 ? { ...right, textColor: [21, 128, 61] } : total(line.shuma));
+  // A "+" before the signed lines' gains and before money that came in, as on the page.
+  const lineKg = line => (line.signed ? plus(line.sasia) : "") + kg(line.sasia);
+  const lineMoney = line => (line.signed || line.moneyIn ? plus(line.shuma) : "") + money(line.shuma);
   autoTable(doc, {
     startY: y,
     head: [HEADERS],
@@ -111,7 +117,7 @@ export function exportEntriesPdf(rows, meta) {
         ...textCells(row),
         tjeter ? "—" : kg(row.sasia),
         tjeter ? "—" : money(row.kosto_per_njesi),
-        money(row.shuma_leke)
+        (isMoneyIn(row) ? plus(row.shuma_leke) : "") + money(row.shuma_leke)
       ];
     }),
     foot: [
@@ -124,9 +130,9 @@ export function exportEntriesPdf(rows, meta) {
         : []),
       ...lines.map(line => [
         { content: line.label, colSpan: 6, styles: { halign: "left" } },
-        { content: line.sasia == null ? "—" : kg(line.sasia), styles: total(line.sasia) },
+        { content: line.sasia == null ? "—" : lineKg(line), styles: total(line.sasia) },
         { content: line.average == null ? "—" : money(line.average), styles: right },
-        { content: money(line.shuma), styles: totalMoney(line) }
+        { content: lineMoney(line), styles: totalMoney(line) }
       ])
     ],
     showFoot: "lastPage",
@@ -166,10 +172,15 @@ export async function exportEntriesExcel(rows, meta) {
     bottom: { style: "thin", color: { argb: color } },
     right: { style: "thin", color: { argb: color } }
   });
-  const formatNumbers = row => {
+  // Sasia, Kosto/kg and Shuma sit on the right. A "+" goes before money that came in and the
+  // signed lines' gains, as in the PDF, through the number format, so the cells stay numbers.
+  const formatNumbers = (row, { signedKg = false, signedMoney = false } = {}) => {
     [7, 8, 9].forEach(col => {
       const cell = row.getCell(col);
-      cell.numFmt = col === 7 ? "#,##0.00#" : "#,##0.00";
+      cell.numFmt =
+        col === 7
+          ? signedKg ? SIGNED_KG_FORMAT : "#,##0.00#"
+          : col === 9 && signedMoney ? SIGNED_MONEY_FORMAT : "#,##0.00";
       cell.alignment = { horizontal: "right", vertical: "middle" };
     });
   };
@@ -207,7 +218,7 @@ export async function exportEntriesExcel(rows, meta) {
       Number(entry.shuma_leke || 0)
     ]);
     row.eachCell(cell => (cell.border = border("E2E8F0")));
-    formatNumbers(row);
+    formatNumbers(row, { signedMoney: isMoneyIn(entry) });
   }
 
   sheet.addRow([]);
@@ -215,15 +226,15 @@ export async function exportEntriesExcel(rows, meta) {
     const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia ?? "—", line.average ?? "—", line.shuma]);
     sheet.mergeCells(row.number, 1, row.number, 6);
     row.eachCell(cell => {
-      // The Diferenca line is red where it's negative (as in the PDF), and its lekë (column 9)
-      // green for a profit.
+      // The signed lines (Tjetër, Diferenca) are red where they're negative (as in the PDF), and
+      // their lekë (column 9) green for a profit.
       const negative = typeof cell.value === "number" && cell.value < 0;
-      const profit = line.difference && cell.col === 9 && cell.value > 0;
+      const profit = line.signed && cell.col === 9 && cell.value > 0;
       cell.font = { bold: true, color: { argb: negative ? "B91C1C" : profit ? "15803D" : "0F172A" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "DBE9F6" } };
       cell.border = border("94A3B8");
     });
-    formatNumbers(row);
+    formatNumbers(row, { signedKg: line.signed, signedMoney: line.signed || line.moneyIn });
   }
 
   [12, 16, 28, 14, 26, 14, 14, 12, 18].forEach((width, i) => (sheet.getColumn(i + 1).width = width));
