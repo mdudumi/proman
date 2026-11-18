@@ -8,7 +8,8 @@ import { CATEGORY_IDS } from "./categoryIds";
 // The page's columns, left to right: the key of the value in each row, its header and how it is
 // formatted. Each direction reads kg, then price per kg, then lekë, the way the lekë are worked
 // out. `shared` marks the columns the exports for sharing with others keep: only the kg in
-// stock, with no kg in or out, no buying or selling prices and no lekë amounts.
+// stock, with no kg in or out, no buying or selling prices and no lekë amounts. `signed` marks
+// the lekë that get a "+" when positive: money that came in (sales) and the result.
 export const PRODUCT_COLUMNS = [
   { key: "produkti", label: "Produkti", format: "text", shared: true },
   { key: "hyrjeKg", label: "Hyrje (kg)", format: "kg" },
@@ -16,10 +17,10 @@ export const PRODUCT_COLUMNS = [
   { key: "hyrjeShuma", label: "Shuma hyrje (lekë)", format: "money" },
   { key: "daljeKg", label: "Dalje (kg)", format: "kg" },
   { key: "kostoDalje", label: "Kosto/kg dalje", format: "money" },
-  { key: "daljeShuma", label: "Shuma dalje (lekë)", format: "money" },
+  { key: "daljeShuma", label: "Shuma dalje (lekë)", format: "money", signed: true },
   { key: "stockKg", label: "Në magazinë (kg)", format: "kg", shared: true },
   { key: "stockValue", label: "Vlera në magazinë (lekë)", format: "money" },
-  { key: "totali", label: "Totali (lekë)", format: "money" }
+  { key: "totali", label: "Totali (lekë)", format: "money", signed: true }
 ];
 
 const number = value => Number(value || 0);

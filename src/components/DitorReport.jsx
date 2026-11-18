@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { fetchBalanceTotals } from "../lib/bilanci";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "../lib/pdfPage";
+import { SIGNED_MONEY_FORMAT, plus } from "../lib/format";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
@@ -45,6 +46,10 @@ const FLAT_COLUMNS = [
 ];
 
 const DEFAULT_COLUMNS = FLAT_COLUMNS.map(x => x.key);
+
+// Vlera - Dalje is money that came in, so it gets a "+", on screen and in the exports.
+const MONEY_IN_COLUMN = "shuma_dalje";
+const excelNumberFormat = col => (col.key === MONEY_IN_COLUMN ? SIGNED_MONEY_FORMAT : "#,##0.00");
 
 const GROUP_BY_OPTIONS = [
   { key: "", label: "Pa grupim" },
@@ -339,6 +344,11 @@ export default function DitorReport() {
     });
   }
 
+  // A column's number, with a "+" in the column of money that came in.
+  function formatValue(key, value) {
+    return (key === MONEY_IN_COLUMN ? plus(Number(value ?? 0)) : "") + formatNumber(value);
+  }
+
   function isNegative(value) {
     return Number(value ?? 0) < 0;
   }
@@ -496,7 +506,7 @@ export default function DitorReport() {
       group.rows.forEach(r => {
         body.push(
           visibleColumns.map(col =>
-            col.key === "data" ? formatDate(r.data) : formatNumber(r[col.key] ?? 0)
+            col.key === "data" ? formatDate(r.data) : formatValue(col.key, r[col.key])
           )
         );
       });
@@ -515,7 +525,7 @@ export default function DitorReport() {
                   }
                 }
               : {
-                  content: formatNumber(group.totals[col.key] ?? 0),
+                  content: formatValue(col.key, group.totals[col.key]),
                   styles: {
                     fontStyle: "bold",
                     fillColor: [241, 245, 249],
@@ -541,7 +551,7 @@ export default function DitorReport() {
               }
             }
           : {
-              content: formatNumber(totals[col.key] ?? 0),
+              content: formatValue(col.key, totals[col.key]),
               styles: {
                 fontStyle: "bold",
                 fillColor: [219, 233, 246],
@@ -686,7 +696,7 @@ export default function DitorReport() {
           addBorder(cell, "E2E8F0");
 
           if (col.type === "number") {
-            cell.numFmt = "#,##0.00";
+            cell.numFmt = excelNumberFormat(col);
             cell.alignment = { horizontal: "right", vertical: "middle" };
           } else {
             if (col.key === "data") cell.numFmt = EXCEL_DATE_FORMAT;
@@ -715,7 +725,7 @@ export default function DitorReport() {
           addBorder(cell);
 
           if (col.type === "number") {
-            cell.numFmt = "#,##0.00";
+            cell.numFmt = excelNumberFormat(col);
             cell.alignment = { horizontal: "right", vertical: "middle" };
           } else {
             cell.alignment = { horizontal: "left", vertical: "middle" };
@@ -741,7 +751,7 @@ export default function DitorReport() {
       addBorder(cell, "94A3B8");
 
       if (col.type === "number") {
-        cell.numFmt = "#,##0.00";
+        cell.numFmt = excelNumberFormat(col);
         cell.alignment = { horizontal: "right", vertical: "middle" };
       } else {
         cell.alignment = { horizontal: "left", vertical: "middle" };
@@ -786,7 +796,7 @@ export default function DitorReport() {
   const refreshing = loading && hasLoaded;
   const skeletonColumns = visibleColumns.map(col => (col.type === "number" ? "num" : "date"));
   // A summary card's number, or a placeholder bar before the first answer.
-  const cardValue = value => (hasLoaded ? formatNumber(value) : <Skeleton width="65%" height="0.9em" />);
+  const cardValue = (value, key) => (hasLoaded ? formatValue(key, value) : <Skeleton width="65%" height="0.9em" />);
 
   return (
     <div className="dr-page">
@@ -978,7 +988,7 @@ export default function DitorReport() {
           </div>
           <div className="dr-summary-card">
             <div className="dr-summary-label">Vlera Dalje</div>
-            <div className="dr-summary-value">{cardValue(topSummary.outValue)}</div>
+            <div className="dr-summary-value">{cardValue(topSummary.outValue, MONEY_IN_COLUMN)}</div>
           </div>
           <div className="dr-summary-card">
             <div className={`dr-summary-value ${isNegative(topSummary.closingValue) ? "neg" : ""}`}>
@@ -1101,7 +1111,7 @@ export default function DitorReport() {
                                   isNum && isNegative(raw) ? "neg" : ""
                                 }`}
                               >
-                                {isNum ? formatNumber(raw) : col.key === "data" ? formatDate(raw) : raw}
+                                {isNum ? formatValue(col.key, raw) : col.key === "data" ? formatDate(raw) : raw}
                               </td>
                             );
                           })}
@@ -1121,7 +1131,7 @@ export default function DitorReport() {
                             >
                               {col.key === "data"
                                 ? `Subtotal - ${group.groupLabel}`
-                                : formatNumber(group.totals[col.key] ?? 0)}
+                                : formatValue(col.key, group.totals[col.key])}
                             </td>
                           ))}
                         </tr>
@@ -1142,7 +1152,7 @@ export default function DitorReport() {
                       >
                         {col.key === "data"
                           ? "GRAND TOTAL"
-                          : formatNumber(totals[col.key] ?? 0)}
+                          : formatValue(col.key, totals[col.key])}
                       </td>
                     ))}
                   </tr>

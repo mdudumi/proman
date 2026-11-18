@@ -9,10 +9,13 @@ import SearchSelect from "./SearchSelect";
 import DatePicker from "./DatePicker";
 import { RefreshBar, Skeleton, SkeletonRows, Spinner } from "./Loading";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "../lib/pdfPage";
+import { plus } from "../lib/format";
 import "./OperationalReports.css";
 
 const number = value => Number(value || 0);
 const money = value => number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Dalje is money that came in, so its lekë get a "+".
+const moneyIn = value => plus(number(value)) + money(value);
 const dateLabel = value => {
   const [year, month, day] = String(value || "").split("-");
   return year && month && day ? `${day}-${month}-${year}` : value;
@@ -113,10 +116,10 @@ export default function OperationalReports() {
   const metrics = view === "daily"
     ? [
         ["Sasia hyrje", money(dailySummary.hyrjeSasi)], ["Kosto mes. hyrje", money(dailyKostoHyrje)], ["Vlera hyrje", money(dailySummary.hyrjeVlere)],
-        ["Sasia dalje", money(dailySummary.daljeSasi)], ["Kosto mes. dalje", money(dailyKostoDalje)], ["Vlera dalje", money(dailySummary.daljeVlere)]
+        ["Sasia dalje", money(dailySummary.daljeSasi)], ["Kosto mes. dalje", money(dailyKostoDalje)], ["Vlera dalje", moneyIn(dailySummary.daljeVlere)]
       ]
     : view === "stock"
-      ? [["Vlera hyrje", money(stockSummary.hyrje)], ["Vlera dalje", money(stockSummary.dalje)], ["Sasia në gjendje", money(stockSummary.sasi)], ["Kosto mesatare", money(stockKosto)], ["Vlera në gjendje", money(stockSummary.vlere)]]
+      ? [["Vlera hyrje", money(stockSummary.hyrje)], ["Vlera dalje", moneyIn(stockSummary.dalje)], ["Sasia në gjendje", money(stockSummary.sasi)], ["Kosto mesatare", money(stockKosto)], ["Vlera në gjendje", money(stockSummary.vlere)]]
       : [["Totali hyrje", money(ledgerSummary.hyrje)], ["Totali pagesa", money(ledgerSummary.dalje)], ["Detyrimi", money(ledgerSummary.detyrim)], ["Llogari", String(ledger.length)]];
 
   // The PDF has every row of Faturat ditore, not only the page on screen.
@@ -143,14 +146,14 @@ export default function OperationalReports() {
         ? ["Kategoria", "Produkti", "Vlera hyrje", "Vlera dalje", "Sasia në gjendje", "Kosto/njësi", "Vlera në gjendje"]
         : ["Blerësi / Shitësi", "Hyrje", "Dalje / Pagesa", "Detyrimi"];
     const body = view === "daily"
-      ? dailyRows.map(row => [dateLabel(row.data), row.kategoria, row.produkti, qty(row, row.hyrjeSasi), unitCost(row, row.hyrjeVlere, row.hyrjeSasi), money(row.hyrjeVlere), qty(row, row.daljeSasi), unitCost(row, row.daljeVlere, row.daljeSasi), money(row.daljeVlere)])
+      ? dailyRows.map(row => [dateLabel(row.data), row.kategoria, row.produkti, qty(row, row.hyrjeSasi), unitCost(row, row.hyrjeVlere, row.hyrjeSasi), money(row.hyrjeVlere), qty(row, row.daljeSasi), unitCost(row, row.daljeVlere, row.daljeSasi), moneyIn(row.daljeVlere)])
       : view === "stock"
-        ? stock.map(row => [row.kategoria, row.produkti, money(row.hyrje), money(row.dalje), qty(row, row.sasi), unitCost(row, row.vlere, row.sasi), money(row.vlere)])
+        ? stock.map(row => [row.kategoria, row.produkti, money(row.hyrje), moneyIn(row.dalje), qty(row, row.sasi), unitCost(row, row.vlere, row.sasi), money(row.vlere)])
         : ledger.map(row => [row.bleresi, money(row.hyrje), money(row.dalje), money(row.detyrim)]);
     const totals = view === "daily"
-      ? ["TOTALI", "", "", money(dailySummary.hyrjeSasi), money(dailyKostoHyrje), money(dailySummary.hyrjeVlere), money(dailySummary.daljeSasi), money(dailyKostoDalje), money(dailySummary.daljeVlere)]
+      ? ["TOTALI", "", "", money(dailySummary.hyrjeSasi), money(dailyKostoHyrje), money(dailySummary.hyrjeVlere), money(dailySummary.daljeSasi), money(dailyKostoDalje), moneyIn(dailySummary.daljeVlere)]
       : view === "stock"
-        ? ["TOTALI", "", money(stockSummary.hyrje), money(stockSummary.dalje), money(stockSummary.sasi), money(stockKosto), money(stockSummary.vlere)]
+        ? ["TOTALI", "", money(stockSummary.hyrje), moneyIn(stockSummary.dalje), money(stockSummary.sasi), money(stockKosto), money(stockSummary.vlere)]
         : ["TOTALI", money(ledgerSummary.hyrje), money(ledgerSummary.dalje), money(ledgerSummary.detyrim)];
 
     const bandBottom = drawTitleBand(doc, title.toUpperCase());
@@ -240,8 +243,8 @@ export default function OperationalReports() {
       <div className={`op-table-wrap${refreshing ? " is-refreshing" : ""}`}>
       <table className="op-table"><thead><tr>{COLUMNS[view].map(([label]) => <th key={label}>{label}</th>)}</tr></thead>
       {loading && <tbody aria-busy="true"><SkeletonRows rows={SKELETON_ROWS} columns={COLUMNS[view].map(([, kind]) => kind)} rowHeight={ROW_HEIGHT} /></tbody>}
-      {!loading && view === "daily" && <><tbody>{daily.map(row => <tr key={`${row.data}-${row.produkti}`}><td>{dateLabel(row.data)}</td><td>{row.kategoria}</td><td>{row.produkti}</td><td>{qty(row, row.hyrjeSasi)}</td><td>{unitCost(row, row.hyrjeVlere, row.hyrjeSasi)}</td><td>{money(row.hyrjeVlere)}</td><td>{qty(row, row.daljeSasi)}</td><td>{unitCost(row, row.daljeVlere, row.daljeSasi)}</td><td>{money(row.daljeVlere)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td></td><td>{money(dailySummary.hyrjeSasi)}</td><td>{money(dailyKostoHyrje)}</td><td>{money(dailySummary.hyrjeVlere)}</td><td>{money(dailySummary.daljeSasi)}</td><td>{money(dailyKostoDalje)}</td><td>{money(dailySummary.daljeVlere)}</td></tr></tfoot></>}
-      {!loading && view === "stock" && <><tbody>{stock.map(row => <tr key={row.produktiId}><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td>{qty(row, row.sasi)}</td><td>{unitCost(row, row.vlere, row.sasi)}</td><td>{money(row.vlere)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td>{money(stockSummary.hyrje)}</td><td>{money(stockSummary.dalje)}</td><td>{money(stockSummary.sasi)}</td><td>{money(stockKosto)}</td><td>{money(stockSummary.vlere)}</td></tr></tfoot></>}
+      {!loading && view === "daily" && <><tbody>{daily.map(row => <tr key={`${row.data}-${row.produkti}`}><td>{dateLabel(row.data)}</td><td>{row.kategoria}</td><td>{row.produkti}</td><td>{qty(row, row.hyrjeSasi)}</td><td>{unitCost(row, row.hyrjeVlere, row.hyrjeSasi)}</td><td>{money(row.hyrjeVlere)}</td><td>{qty(row, row.daljeSasi)}</td><td>{unitCost(row, row.daljeVlere, row.daljeSasi)}</td><td>{moneyIn(row.daljeVlere)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td></td><td>{money(dailySummary.hyrjeSasi)}</td><td>{money(dailyKostoHyrje)}</td><td>{money(dailySummary.hyrjeVlere)}</td><td>{money(dailySummary.daljeSasi)}</td><td>{money(dailyKostoDalje)}</td><td>{moneyIn(dailySummary.daljeVlere)}</td></tr></tfoot></>}
+      {!loading && view === "stock" && <><tbody>{stock.map(row => <tr key={row.produktiId}><td>{row.kategoria}</td><td>{row.produkti}</td><td>{money(row.hyrje)}</td><td>{moneyIn(row.dalje)}</td><td>{qty(row, row.sasi)}</td><td>{unitCost(row, row.vlere, row.sasi)}</td><td>{money(row.vlere)}</td></tr>)}</tbody><tfoot><tr><td>TOTALI</td><td></td><td>{money(stockSummary.hyrje)}</td><td>{moneyIn(stockSummary.dalje)}</td><td>{money(stockSummary.sasi)}</td><td>{money(stockKosto)}</td><td>{money(stockSummary.vlere)}</td></tr></tfoot></>}
       {!loading && view === "ledger" && <><tbody>{ledger.map(row => <tr key={row.bleresiId}><td>{row.bleresi}</td><td>{money(row.hyrje)}</td><td>{money(row.dalje)}</td><td className={row.detyrim < 0 ? "negative" : ""}>{money(row.detyrim)}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{money(ledgerSummary.hyrje)}</td><td>{money(ledgerSummary.dalje)}</td><td>{money(ledgerSummary.detyrim)}</td></tr></tfoot></>}
       </table>
     </div></>}

@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { PRODUCT_COLUMNS } from "./produktet";
-import { formatKg, formatMoney } from "./format";
+import { SIGNED_MONEY_FORMAT, formatKg, formatMoney, plus } from "./format";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "./pdfPage";
 
 // Excel and PDF exports of the products page, with the rows as filtered and sorted on screen.
@@ -18,10 +18,12 @@ const columnsFor = shared => PRODUCT_COLUMNS.filter(column => !shared || column.
 const totalLabel = n => `Totali (${count(n)} ${n === 1 ? "produkt" : "produkte"})`;
 
 // A value as the PDF prints it; kg and lekë say so in their headers, and "—" is nothing to show.
+// The `signed` columns put a "+" before positive lekë, as on the page.
 function show(column, value) {
   if (value == null) return "—";
   if (column.format === "text") return String(value);
-  return column.format === "kg" ? formatKg(value) : formatMoney(value);
+  if (column.format === "kg") return formatKg(value);
+  return (column.signed ? plus(value) : "") + formatMoney(value);
 }
 
 // Red where a value is negative, and green for a profit in Totali, as on the page.
@@ -116,7 +118,8 @@ export async function exportProductsExcel(rows, totals, meta) {
     bottom: { style: "thin", color: { argb: color } },
     right: { style: "thin", color: { argb: color } }
   });
-  // Numbers sit on the right with their format; red where negative, green for a profit in Totali.
+  // Numbers sit on the right with their format (with a "+" in the `signed` columns); red where
+  // negative, green for a profit in Totali.
   const formatCell = (cell, column, bold) => {
     const color =
       typeof cell.value === "number" && cell.value < 0
@@ -128,7 +131,7 @@ export async function exportProductsExcel(rows, totals, meta) {
             : null;
     if (color || bold) cell.font = { bold, ...(color ? { color: { argb: color } } : {}) };
     if (column.format === "text") return;
-    cell.numFmt = column.format === "kg" ? "#,##0.00#" : "#,##0.00";
+    cell.numFmt = column.format === "kg" ? "#,##0.00#" : column.signed ? SIGNED_MONEY_FORMAT : "#,##0.00";
     cell.alignment = { horizontal: "right", vertical: "middle" };
   };
 
