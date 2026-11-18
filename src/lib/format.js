@@ -13,3 +13,9 @@ export const formatKg = value => Number(value || 0).toLocaleString("en-US", { ma
 // On screen the unit goes with the number: "2 kg". The exports say kg in the column header instead.
 export const withKg = value => `${formatKg(value)} kg`;
 export const withLeke = value => `${formatMoney(value)} lekë`;
+
+// A "+" before money that came in and positive results, next to the "-" that negatives already have.
+export const plus = value => (value > 0 ? "+" : "");
+
+// The same in Excel, as a number format, so the cell stays a number.
+export const SIGNED_MONEY_FORMAT = "+#,##0.00;-#,##0.00;0.00";

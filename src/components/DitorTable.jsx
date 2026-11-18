@@ -5,12 +5,13 @@ import {
   entriesQuery,
   fetchAllEntries,
   fetchFilterOptions,
+  isMoneyIn,
   isTjeterEntry,
   selectionFilters,
   withFilter
 } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
-import { formatMoney, withKg } from "../lib/format";
+import { formatMoney, plus, withKg } from "../lib/format";
 import Modal from "./Modal";
 import DitorForm from "./DitorForm";
 import SearchSelect from "./SearchSelect";
@@ -22,10 +23,13 @@ import "./DitorTable.css";
 
 const PAGE_SIZE = 100;
 
-// The placeholder for the first load: Data … Kosto/Njesi, then the edit and delete buttons' column.
-// A real row is 51px high, because of those buttons.
-const SKELETON_COLUMNS = ["date", "text", "text", "text", "text", "text", "num", "num", "num", ""];
+// The placeholder for the first load: the checkbox, Data … Shuma, then the edit and delete
+// buttons' column. A real row is 51px high, because of those buttons.
+const SKELETON_COLUMNS = ["", "date", "text", "text", "text", "text", "text", "num", "num", "num", ""];
 const ROW_HEIGHT = 51;
+
+// Selected entries are deleted this many at a time, so the list of ids fits in the request.
+const DELETE_BATCH = 100;
 
 // Tjetër entries are money movements: their quantity of 1 isn't kilograms, so they have no kg and no unit cost.
 const TJETER_HINT = "Tjetër: lëvizje parash, pa sasi në kg dhe pa kosto për njësi";
@@ -45,7 +49,8 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [pdfPrompt, setPdfPrompt] = useState(false);
   // Counts edits and deletes, so the totals rows reload after each one.
   const [changes, setChanges] = useState(0);
-  // The rows clicked to see their own totals, by id. Kept across pages, cleared with the filters.
+  // The selected rows, by id: their totals show under the table, and they can be exported or
+  // deleted together. Kept across pages, cleared with the filters.
   const [selected, setSelected] = useState({});
   // The entry just edited: if it no longer shows on this page, it's no longer selected either.
   const editedId = useRef(null);
@@ -71,6 +76,11 @@ export default function DitorTable({ refreshKey = 0 }) {
   const [lookupsLoading, setLookupsLoading] = useState(true);
   // The entry being deleted, so its delete button shows that it's working.
   const [deletingId, setDeletingId] = useState(null);
+  // Deleting the selected rows: whether the confirmation is open, whether it's running, and what went wrong.
+  const [deletePrompt, setDeletePrompt] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const selectAllRef = useRef(null);
 
   useEffect(() => {
     fetchFilterOptions()
@@ -130,16 +140,59 @@ export default function DitorTable({ refreshKey = 0 }) {
       return;
     }
 
-    setChanges(n => n + 1);
     setSelected(prev => withoutRow(prev, id));
-    const newTotal = Math.max(totalRows - 1, 0);
-    const maxPage = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
+    afterDelete(1);
+  }
 
-    if (page > maxPage) {
-      setPage(maxPage);
-    } else {
-      load();
+  function askDeleteSelected() {
+    setDeleteError("");
+    setDeletePrompt(true);
+  }
+
+  // Deletes every selected entry, on this page and the others. If a batch fails, the entries
+  // already deleted leave the selection, so trying again deletes only the rest.
+  async function removeSelected() {
+    const ids = selectedRows.map(row => row.id);
+    const deleted = [];
+    setBulkDeleting(true);
+    setDeleteError("");
+    try {
+      for (let i = 0; i < ids.length; i += DELETE_BATCH) {
+        const { data, error } = await supabase
+          .from("ditor")
+          .delete()
+          .in("id", ids.slice(i, i + DELETE_BATCH))
+          .select("id");
+        if (error) throw error;
+        deleted.push(...(data || []).map(row => row.id));
+      }
+      if (deleted.length < ids.length) {
+        setDeleteError(`${ids.length - deleted.length} nga ${ids.length} regjistrimet nuk u fshinë.`);
+      }
+    } catch (err) {
+      console.error(err);
+      const done = deleted.length ? `U fshinë ${deleted.length}, pastaj fshirja u ndal` : "Fshirja nuk u krye";
+      setDeleteError(`${done}: ${err.message || err}`);
     }
+    setBulkDeleting(false);
+    if (!deleted.length) return;
+
+    setSelected(prev => {
+      const next = { ...prev };
+      for (const id of deleted) delete next[id];
+      return next;
+    });
+    if (deleted.length === ids.length) setDeletePrompt(false);
+    afterDelete(deleted.length);
+  }
+
+  // After entries are deleted: the totals reload, and so does the table, or it moves back to the
+  // last page if this one is now past the end.
+  function afterDelete(count) {
+    setChanges(n => n + 1);
+    const maxPage = Math.max(1, Math.ceil(Math.max(totalRows - count, 0) / PAGE_SIZE));
+    if (page > maxPage) setPage(maxPage);
+    else load();
   }
 
   function setF(name, value) {
@@ -230,6 +283,27 @@ export default function DitorTable({ refreshKey = 0 }) {
     setSelected(prev => (prev[row.id] ? withoutRow(prev, row.id) : { ...prev, [row.id]: row }));
   }
 
+  // The header checkbox selects every row on this page, or unselects them once they all are.
+  // Only this page: a selection never takes in rows nobody has seen.
+  const pageSelected = rows.filter(row => selected[row.id]).length;
+  const allOnPage = rows.length > 0 && pageSelected === rows.length;
+
+  function toggleAllOnPage() {
+    setSelected(prev => {
+      const next = { ...prev };
+      for (const row of rows) {
+        if (allOnPage) delete next[row.id];
+        else next[row.id] = row;
+      }
+      return next;
+    });
+  }
+
+  // Half-ticked while only some rows on the page are selected; only a script can set that.
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = pageSelected > 0 && !allOnPage;
+  }, [pageSelected, allOnPage]);
+
   // The totals appear at the bottom of the box when the first row is selected, over the last
   // rows in view: if they now cover the row just clicked, scroll it back up above them.
   useLayoutEffect(() => {
@@ -244,8 +318,9 @@ export default function DitorTable({ refreshKey = 0 }) {
   }, [selected]);
 
   function onRowClick(event, row) {
-    // Not from the edit and delete buttons, nor when text was dragged over to copy it.
-    if (event.target.closest("button") || window.getSelection()?.toString()) return;
+    // Not from the edit and delete buttons or the checkbox (it toggles itself), nor when text was
+    // dragged over to copy it.
+    if (event.target.closest("button, input") || window.getSelection()?.toString()) return;
     toggleRow(row);
   }
 
@@ -366,6 +441,9 @@ export default function DitorTable({ refreshKey = 0 }) {
               <button className="dtSelectionClear" onClick={() => setSelected({})}>
                 Pastro zgjedhjen
               </button>
+              <button className="dtSelectionClear dtSelectionDelete" onClick={askDeleteSelected} disabled={bulkDeleting}>
+                Fshi të zgjedhurat
+              </button>
             </span>
           )}
         </div>
@@ -423,6 +501,17 @@ export default function DitorTable({ refreshKey = 0 }) {
         <table className="dtTable">
           <thead>
             <tr>
+              <th className="dtCheck">
+                <input
+                  type="checkbox"
+                  ref={selectAllRef}
+                  checked={allOnPage}
+                  onChange={toggleAllOnPage}
+                  disabled={!rows.length || Boolean(error)}
+                  aria-label={allOnPage ? "Hiq zgjedhjen në këtë faqe" : "Zgjidh të gjitha në këtë faqe"}
+                  title={allOnPage ? "Hiq zgjedhjen në këtë faqe" : "Zgjidh të gjitha në këtë faqe"}
+                />
+              </th>
               <th>Data</th>
               <th>Kategoria</th>
               <th>Produkti</th>
@@ -430,8 +519,8 @@ export default function DitorTable({ refreshKey = 0 }) {
               <th>Bleresi/Shitesi</th>
               <th>Veprimi</th>
               <th>Sasia</th>
-              <th>Shuma</th>
               <th>Kosto/Njesi</th>
+              <th>Shuma</th>
               <th></th>
             </tr>
           </thead>
@@ -441,7 +530,7 @@ export default function DitorTable({ refreshKey = 0 }) {
 
             {error && (
               <tr>
-                <td colSpan="10" className="dtEmpty dtError">
+                <td colSpan="11" className="dtEmpty dtError">
                   Të dhënat nuk u ngarkuan: {error}
                   <button className="dtRetryBtn" onClick={load}>
                     Provo përsëri
@@ -452,7 +541,7 @@ export default function DitorTable({ refreshKey = 0 }) {
 
             {hasLoaded && !error && rows.length === 0 && (
               <tr>
-                <td colSpan="10" className="dtEmpty">
+                <td colSpan="11" className="dtEmpty">
                   No records found
                 </td>
               </tr>
@@ -468,6 +557,15 @@ export default function DitorTable({ refreshKey = 0 }) {
                 onClick={event => onRowClick(event, r)}
                 onKeyDown={event => onRowKeyDown(event, r)}
               >
+                <td className="dtCheck">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selected[r.id])}
+                    onChange={() => toggleRow(r)}
+                    tabIndex={-1}
+                    aria-label="Zgjidh"
+                  />
+                </td>
                 <td title={r.data}>{formatDate(r.data)}</td>
                 <td title={r.kategoria?.name || ""}>{r.kategoria?.name}</td>
                 <td title={r.produkti?.name || ""}>{r.produkti?.name}</td>
@@ -477,7 +575,6 @@ export default function DitorTable({ refreshKey = 0 }) {
                 <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
                   {isTjeterEntry(r) ? "—" : withKg(r.sasia)}
                 </td>
-                <td className="num">{formatMoney(r.shuma_leke)}</td>
                 <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
                   {isTjeterEntry(r)
                     ? "—"
@@ -485,6 +582,7 @@ export default function DitorTable({ refreshKey = 0 }) {
                       ? formatMoney(r.kosto_per_njesi)
                       : ""}
                 </td>
+                <td className="num">{(isMoneyIn(r) ? plus(r.shuma_leke) : "") + formatMoney(r.shuma_leke)}</td>
                 <td className="actions">
                   <button onClick={() => setEditRow(r)} disabled={deletingId === r.id}>✏️</button>
                   <button
@@ -522,6 +620,40 @@ export default function DitorTable({ refreshKey = 0 }) {
             <button className="dtExportBtn" onClick={() => setPdfPrompt(false)}>Anulo</button>
             <button className="dtExportBtn" onClick={() => runExport("excel")}>Eksporto në Excel</button>
             <button className="dtExportBtn dtExportBtn--primary" onClick={() => runExport("pdf")}>Shkarko PDF</button>
+          </div>
+        </Modal>
+      )}
+
+      {deletePrompt && (
+        <Modal
+          title="Fshi të zgjedhurat"
+          onClose={() => !bulkDeleting && setDeletePrompt(false)}
+          className="modal--small"
+        >
+          <p className="dtDialogText">
+            Do të fshihen përgjithmonë <strong>{selectedRows.length.toLocaleString("en-US")}</strong>{" "}
+            {selectedRows.length === 1 ? "regjistrim i zgjedhur" : "regjistrime të zgjedhura"}.
+            {offPage > 0 && <> Në faqe të tjera: <strong>{offPage.toLocaleString("en-US")}</strong>.</>}
+          </p>
+          <p className="dtDialogText">
+            Ky veprim nuk kthehet mbrapsht. Regjistrimet e pazgjedhura nuk preken.
+          </p>
+          {deleteError && <p className="dtDialogText dtError">{deleteError}</p>}
+          <div className="dtDialogActions">
+            <button className="dtExportBtn" onClick={() => setDeletePrompt(false)} disabled={bulkDeleting}>
+              Anulo
+            </button>
+            <button
+              className="dtExportBtn dtExportBtn--danger"
+              onClick={removeSelected}
+              disabled={bulkDeleting || !selectedRows.length}
+            >
+              {bulkDeleting ? (
+                <><Spinner />Duke fshirë…</>
+              ) : (
+                `Fshi ${selectedRows.length.toLocaleString("en-US")} ${selectedRows.length === 1 ? "regjistrim" : "regjistrime"}`
+              )}
+            </button>
           </div>
         </Modal>
       )}

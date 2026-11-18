@@ -4,7 +4,7 @@ import { CATEGORY_IDS } from "../lib/categoryIds";
 import { fetchFilterOptions, withFilter } from "../lib/ditorEntries";
 import { PRODUCT_COLUMNS, fetchProducts, productTotals, sortProducts } from "../lib/produktet";
 import { exportProductsExcel, exportProductsPdf } from "../lib/produktetExport";
-import { formatMoney, withKg, withLeke } from "../lib/format";
+import { formatMoney, plus, withKg, withLeke } from "../lib/format";
 import useFetched from "../lib/useFetched";
 import DatePicker from "../components/DatePicker";
 import SearchSelect from "../components/SearchSelect";
@@ -35,8 +35,6 @@ const withoutTjeter = options => ({
   produkte: options.produkte.filter(p => p.kategoria_id !== CATEGORY_IDS.TJETER)
 });
 
-// The Diferenca style: a "+" before gains, next to the "-" that losses already have.
-const plus = value => (value > 0 ? "+" : "");
 const formatDate = value => {
   const [year, month, day] = String(value || "").split("-");
   return year && month && day ? `${day}.${month}.${year}` : value;
@@ -44,6 +42,8 @@ const formatDate = value => {
 const tone = value => (value < 0 ? "neg" : value > 0 ? "pos" : "");
 
 // What each column shows in a product's row: its text, a colour (`tone`) and a note (`title`).
+// A "+" goes before gains, next to the "-" that losses already have, and before sales, which are
+// money that came in.
 const ROW_CELLS = {
   produkti: row => ({ content: row.produkti, title: row.produkti }),
   hyrjeKg: row => ({ content: withKg(row.hyrjeKg) }),
@@ -57,7 +57,7 @@ const ROW_CELLS = {
   }),
   kostoDalje: row => ({ content: row.kostoDalje == null ? "—" : formatMoney(row.kostoDalje) }),
   hyrjeShuma: row => ({ content: formatMoney(row.hyrjeShuma) }),
-  daljeShuma: row => ({ content: formatMoney(row.daljeShuma) }),
+  daljeShuma: row => ({ content: plus(row.daljeShuma) + formatMoney(row.daljeShuma) }),
   totali: row => ({ content: plus(row.totali) + formatMoney(row.totali), tone: tone(row.totali) })
 };
 
@@ -73,7 +73,7 @@ const TOTAL_CELLS = {
   stockValue: totals => ({ content: withLeke(totals.stockValue), tone: totals.stockValue < 0 ? "neg" : "" }),
   kostoDalje: () => ({ content: "—", title: FOOTER_HINT }),
   hyrjeShuma: totals => ({ content: withLeke(totals.hyrjeShuma) }),
-  daljeShuma: totals => ({ content: withLeke(totals.daljeShuma) }),
+  daljeShuma: totals => ({ content: plus(totals.daljeShuma) + withLeke(totals.daljeShuma) }),
   totali: totals => ({ content: plus(totals.totali) + withLeke(totals.totali), tone: tone(totals.totali) })
 };
 

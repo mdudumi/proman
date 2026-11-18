@@ -157,6 +157,25 @@
   box-shadow:inset 3px 0 0 #6ea8ff;
 }
 
+/* The checkbox column: one per row, and the header's for every row on the page */
+.dtTable .dtCheck{
+  width:1%;
+  padding-right:0;
+}
+
+.dtCheck input{
+  display:block;
+  width:16px;
+  height:16px;
+  margin:0;
+  accent-color:#6ea8ff;
+  cursor:pointer;
+}
+
+.dtCheck input:disabled{
+  cursor:default;
+}
+
 .num{
   text-align:right;
   font-variant-numeric:tabular-nums;
@@ -321,6 +340,22 @@
   background:rgba(255,255,255,.14);
 }
 
+/* Deleting the selected rows can't be undone, so its buttons are red */
+.dtSelectionDelete{
+  border-color:rgba(255,138,138,.45);
+  background:rgba(255,138,138,.12);
+  color:#ff8a8a;
+}
+
+.dtSelectionDelete:hover:not(:disabled){
+  background:rgba(255,138,138,.22);
+}
+
+.dtSelectionDelete:disabled{
+  opacity:.6;
+  cursor:progress;
+}
+
 .dtPagerActions{
   display:flex;
   align-items:center;
@@ -383,6 +418,15 @@
 
 .dtExportBtn--primary:hover:not(:disabled){
   background:rgba(110,168,255,.30);
+}
+
+.dtExportBtn--danger{
+  border-color:rgba(255,138,138,.55);
+  background:rgba(239,68,68,.28);
+}
+
+.dtExportBtn--danger:hover:not(:disabled){
+  background:rgba(239,68,68,.38);
 }
 
 .dtDialogText{
