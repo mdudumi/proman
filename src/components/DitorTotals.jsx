@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { entryTotals, fetchEntryTotals, selectionFilters, totalsLines } from "../lib/ditorEntries";
+import { entryTotals, fetchTotalsWithTjeter, selectionFilters, totalsLines } from "../lib/ditorEntries";
 import { formatMoney, plus, withKg, withLeke } from "../lib/format";
 import { Skeleton } from "./Loading";
 
@@ -9,6 +9,8 @@ const LABEL_COLUMNS = 7;
 const ALL_COLUMNS = 11;
 
 const TJETER_HINT = "Pa regjistrimet Tjetër: ato janë lëvizje parash, jo kg";
+// The line under a total with its Tjetër part, shown with one Blerësi/Shitësi.
+const SHARE_HINT = "Tjetër: lëvizje parash (pagesa, TVSH, rakordime), pa kg dhe pa kosto për kg";
 // Across products the totals have no cost per kg, and the difference line no kg (totalsLines).
 const FILTER_HINTS = {
   average: "Kosto për kg shfaqet vetëm kur zgjidhet një produkt",
@@ -25,13 +27,15 @@ const moneyClass = line => (line.shuma < 0 ? " neg" : line.difference && line.sh
 // The difference line also puts a "+" before gains, next to the "-" losses already have, so it
 // reads the same without its colours. Money that came in (Totali Dalje) gets the "+" too.
 function TotalsRow({ line, oneProduct, hints }) {
+  const sasiaHint = line.share ? SHARE_HINT : line.sasia == null ? hints.diffKg : TJETER_HINT;
+  const averageHint = line.share ? SHARE_HINT : line.difference ? undefined : oneProduct ? TJETER_HINT : hints.average;
   return (
-    <tr className={line.difference ? "dtTotalsDiff" : undefined}>
+    <tr className={line.difference ? "dtTotalsDiff" : line.share ? "dtTotalsShare" : undefined}>
       <td colSpan={LABEL_COLUMNS}>{line.label}</td>
-      <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={line.sasia == null ? hints.diffKg : TJETER_HINT}>
+      <td className={`num${line.sasia < 0 ? " neg" : ""}`} title={sasiaHint}>
         {line.sasia == null ? "—" : (line.difference ? plus(line.sasia) : "") + withKg(line.sasia)}
       </td>
-      <td className="num" title={line.difference ? undefined : oneProduct ? TJETER_HINT : hints.average}>
+      <td className="num" title={averageHint}>
         {line.average == null ? "—" : formatMoney(line.average)}
       </td>
       <td className={`num${moneyClass(line)}`}>
@@ -44,7 +48,8 @@ function TotalsRow({ line, oneProduct, hints }) {
 
 /**
  * Totals rows under the dashboard table: Hyrje and Dalje, or only the action the Veprimi filter
- * picks, and their difference.
+ * picks, and their difference; with one Blerësi/Shitësi, each total's Tjetër part and the
+ * balance with that party (totalsLines).
  * While rows are selected (`selectedRows`), the lines add up only those. Otherwise, while
  * `showFilterTotals`, they cover every entry matching the filters, not only the page on screen;
  * they keep loading during a selection, so they're ready when it's cleared.
@@ -59,7 +64,7 @@ export default function DitorTotals({ filters, reloadKey, showFilterTotals, sele
   useEffect(() => {
     if (!showFilterTotals) return;
     let current = true;
-    fetchEntryTotals(filters).then(
+    fetchTotalsWithTjeter(filters).then(
       totals => current && setResult({ key, filters, totals }),
       err => current && setResult({ key, error: err.message || String(err) })
     );

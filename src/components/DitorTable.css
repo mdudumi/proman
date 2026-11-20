@@ -267,6 +267,17 @@
   border-top-style:dashed;
 }
 
+/* a total's Tjetër part, under it: indented and lighter, so it reads as part of that total */
+.dtTotals tr.dtTotalsShare td{
+  border-top:none;
+  font-weight:400;
+  color:var(--muted);
+}
+
+.dtTotals tr.dtTotalsShare td:first-child{
+  padding-left:28px;
+}
+
 .dtTotals td.neg{
   color:#ff8a8a;
 }
