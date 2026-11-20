@@ -128,7 +128,10 @@ export function exportEntriesPdf(rows, meta) {
           }]]
         : []),
       ...lines.map(line => [
-        { content: line.label, colSpan: 6, styles: { halign: "left" } },
+        // A total's Tjetër part (one Blerësi/Shitësi) sits indented under it, not bold.
+        line.share
+          ? { content: line.label, colSpan: 6, styles: { halign: "left", fontStyle: "normal", cellPadding: { left: 5, top: 1.3, right: 1.3, bottom: 1.3 } } }
+          : { content: line.label, colSpan: 6, styles: { halign: "left" } },
         { content: line.sasia == null ? "—" : lineKg(line), styles: total(line.sasia) },
         { content: line.average == null ? "—" : money(line.average), styles: right },
         { content: lineMoney(line), styles: totalMoney(line) }
@@ -224,12 +227,14 @@ export async function exportEntriesExcel(rows, meta) {
   for (const line of lines) {
     const row = sheet.addRow([line.label, "", "", "", "", "", line.sasia ?? "—", line.average ?? "—", line.shuma]);
     sheet.mergeCells(row.number, 1, row.number, 6);
+    // A total's Tjetër part (one Blerësi/Shitësi) sits indented under it, not bold, as in the PDF.
+    if (line.share) row.getCell(1).alignment = { indent: 2 };
     row.eachCell(cell => {
       // The Diferenca line is red where it's negative (as in the PDF), and its lekë (column 9)
       // green for a profit.
       const negative = typeof cell.value === "number" && cell.value < 0;
       const profit = line.difference && cell.col === 9 && cell.value > 0;
-      cell.font = { bold: true, color: { argb: negative ? "B91C1C" : profit ? "15803D" : "0F172A" } };
+      cell.font = { bold: !line.share, color: { argb: negative ? "B91C1C" : profit ? "15803D" : "0F172A" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "DBE9F6" } };
       cell.border = border("94A3B8");
     });

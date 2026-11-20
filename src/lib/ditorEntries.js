@@ -114,9 +114,10 @@ const DIRECTION = { Import: "Hyrje/Blerje", Export: "Shitje/Dalje" };
 // The VEPRIME line a Veprimi counts in.
 export const direction = veprimi => DIRECTION[veprimi] || veprimi;
 
-// Money that came in to the owner: a Dalje (a sale) or an Export, Tjetër or not. A Hyrje or an
-// Import is money that went out.
-export const isMoneyIn = row => direction(row.veprimi) === "Shitje/Dalje";
+// Money that came in to the owner: goods sold (a Dalje or an Export), or a Tjetër Hyrje, which is
+// a payment received. Goods bought and a Tjetër Dalje, a payment made, are money that went out.
+export const isMoneyIn = row =>
+  isTjeterEntry(row) ? direction(row.veprimi) === "Hyrje/Blerje" : direction(row.veprimi) === "Shitje/Dalje";
 
 // The two directions the totals go by.
 export const VEPRIME = [
@@ -127,10 +128,11 @@ export const VEPRIME = [
 // Totals per direction (Hyrje with the Imports, Dalje with the Exports): number of entries,
 // kilograms and lekë.
 // A Tjetër entry's lekë counts, but its quantity is not kilograms, so it's left out of
-// `sasia`; `shumaMall` holds the goods-only lekë that the average price per kg uses.
+// `sasia`; `shumaMall` holds the goods-only lekë that the average price per kg uses, and
+// `countMall` the number of goods entries. Tjetër's share of a line is the rest.
 export function entryTotals(rows) {
   const totals = Object.fromEntries(
-    VEPRIME.map(v => [v.value, { count: 0, sasia: 0, shuma: 0, shumaMall: 0 }])
+    VEPRIME.map(v => [v.value, { count: 0, countMall: 0, sasia: 0, shuma: 0, shumaMall: 0 }])
   );
 
   for (const row of rows) {
@@ -140,6 +142,7 @@ export function entryTotals(rows) {
     line.count += 1;
     line.shuma += shuma;
     if (!isTjeterEntry(row)) {
+      line.countMall += 1;
       line.sasia += Number(row.sasia || 0);
       line.shumaMall += shuma;
     }
@@ -162,46 +165,88 @@ export const averagePerKg = line => (line.sasia ? line.shumaMall / line.sasia : 
 // many products says nothing useful. With `selected`, the labels say the entries are the selected ones.
 // The Dalje line is `moneyIn`: its lekë came in, so they get a "+".
 // Filtered to Import or Export, the one line is named after it: it holds only those entries.
+// With one Blerësi/Shitësi, each total gets a `share` line under it with its Tjetër (money)
+// part, and the last line is the balance with that party instead. For a buyer (sold more goods
+// to than bought from) it's Hyrje - Dalje: his payments minus the goods, TVSH and reconciliations
+// charged to him. For a supplier it's Dalje - Hyrje: the payments to him minus what he charged.
+// Either way + means paid in advance, - still to be paid. Its kg follow the Diferenca.
 export function totalsLines(totals, filters, { selected = false } = {}) {
   const oneProduct = Boolean(filters.produkti_id);
+  const oneParty = Boolean(filters.bleresi_id);
   const picked = filters.veprimi && direction(filters.veprimi);
-  const lines = VEPRIME.filter(v => !picked || v.value === picked).map(v => {
+  const shown = VEPRIME.filter(v => !picked || v.value === picked);
+  const entries = n => {
+    const one = n === 1;
+    return `${n.toLocaleString("en-US")} ${one ? "regjistrim" : "regjistrime"}${selected ? (one ? " i zgjedhur" : " të zgjedhura") : ""}`;
+  };
+  // Rounded, and -0 made 0, so float noise can't show up as -0
+  const roundLeke = value => Math.round(value * 100) / 100 || 0;
+
+  const lines = [];
+  for (const v of shown) {
     const line = totals[v.value];
-    const one = line.count === 1;
-    const entries = `${line.count.toLocaleString("en-US")} ${one ? "regjistrim" : "regjistrime"}${selected ? (one ? " i zgjedhur" : " të zgjedhura") : ""}`;
     const name = filters.veprimi && filters.veprimi !== v.value ? filters.veprimi : v.label;
-    return {
+    lines.push({
       key: v.value,
-      label: `Totali ${name} (${entries})`,
+      label: `Totali ${name} (${entries(line.count)})`,
       sasia: line.sasia,
       shuma: line.shuma,
       average: oneProduct ? averagePerKg(line) : null,
       moneyIn: v.value === "Shitje/Dalje"
-    };
-  });
-
-  if (lines.length === 2) {
-    const [hyrje, dalje] = lines;
-    lines.push({
-      key: "diff",
-      // A plain hyphen: the PDF's built-in font has no minus sign (−), and garbles the whole line.
-      label: oneProduct ? "Diferenca (lekë: Dalje - Hyrje, kg: Hyrje - Dalje)" : "Diferenca (Dalje - Hyrje)",
-      // Rounded, and -0 made 0, so float noise can't show up as -0
-      sasia: oneProduct ? Math.round((hyrje.sasia - dalje.sasia) * 1000) / 1000 || 0 : null,
-      shuma: Math.round((dalje.shuma - hyrje.shuma) * 100) / 100 || 0,
-      average: null,
-      difference: true
     });
+    // `countMall` is null when the database totals didn't count the goods entries.
+    const tjeterCount = line.countMall == null ? null : line.count - line.countMall;
+    const tjeterLeke = roundLeke(line.shuma - line.shumaMall);
+    if (oneParty && (tjeterCount == null ? tjeterLeke !== 0 : tjeterCount > 0)) {
+      lines.push({
+        key: `${v.value}-tjeter`,
+        label: `nga të cilat Tjetër${tjeterCount == null ? "" : ` (${entries(tjeterCount)})`}`,
+        sasia: null,
+        shuma: tjeterLeke,
+        average: null,
+        share: true
+      });
+    }
+  }
+
+  if (shown.length === 2) {
+    const [hyrje, dalje] = VEPRIME.map(v => totals[v.value]);
+    const sasia = oneProduct ? Math.round((hyrje.sasia - dalje.sasia) * 1000) / 1000 || 0 : null;
+    if (oneParty) {
+      const buyer = dalje.shumaMall >= hyrje.shumaMall;
+      // A plain hyphen: the PDF's built-in font has no minus sign (−), and garbles the whole line.
+      const lekeLabel = buyer ? "Hyrje - Dalje" : "Dalje - Hyrje";
+      lines.push({
+        key: "balance",
+        label: `Gjendja me ${buyer ? "blerësin" : "shitësin"} (${oneProduct ? `lekë: ${lekeLabel}, kg: Hyrje - Dalje` : lekeLabel})`,
+        sasia,
+        shuma: roundLeke(buyer ? hyrje.shuma - dalje.shuma : dalje.shuma - hyrje.shuma),
+        average: null,
+        difference: true
+      });
+    } else {
+      lines.push({
+        key: "diff",
+        label: oneProduct ? "Diferenca (lekë: Dalje - Hyrje, kg: Hyrje - Dalje)" : "Diferenca (Dalje - Hyrje)",
+        sasia,
+        shuma: roundLeke(dalje.shuma - hyrje.shuma),
+        average: null,
+        difference: true
+      });
+    }
   }
   return lines;
 }
 
 // The filters that the totals of selected rows go by: the dashboard's, with the product only when
-// every selected row is the same one, so Kosto/kg and the kg difference follow the same rule.
+// every selected row is the same one, so Kosto/kg and the kg difference follow the same rule, and
+// the Blerësi/Shitësi only when every selected row has the same one, for the balance line.
 export function selectionFilters(rows, filters) {
   const produktiId = rows[0]?.produkti?.id;
   const oneProduct = rows.length > 0 && rows.every(row => row.produkti?.id === produktiId);
-  return { ...filters, produkti_id: oneProduct ? produktiId : "" };
+  const bleresiId = rows[0]?.bleresi?.id;
+  const oneParty = Boolean(bleresiId) && rows.every(row => row.bleresi?.id === bleresiId);
+  return { ...filters, produkti_id: oneProduct ? produktiId : "", bleresi_id: oneParty ? bleresiId : "" };
 }
 
 // The dashboard table's order, for entries already loaded: oldest first, as entriesQuery sorts.
@@ -213,7 +258,8 @@ export const byEntryOrder = (a, b) =>
 // The same totals as entryTotals, for every entry matching the filters, added up by the
 // database (rpc_ditor_totals, supabase/migrations/20261026_ditor_totals.sql) instead of
 // downloading the entries. It returns a row per Veprimi, so Import is added into the Hyrje line
-// and Export into the Dalje line here.
+// and Export into the Dalje line here. It doesn't count the goods entries apart, so `countMall`
+// is null: fetchTotalsWithTjeter fills it in where the totals lines need it.
 export async function fetchEntryTotals(filters) {
   const { data, error } = await supabase.rpc("rpc_ditor_totals", {
     p_from_date: filters.fromDate || null,
@@ -234,6 +280,26 @@ export async function fetchEntryTotals(filters) {
     line.sasia += Number(row.sasia);
     line.shuma += Number(row.shuma);
     line.shumaMall += Number(row.shuma_mall);
+  }
+  for (const v of VEPRIME) totals[v.value].countMall = null;
+  return totals;
+}
+
+// fetchEntryTotals for the dashboard's totals lines. With one Blerësi/Shitësi they show how many
+// entries of each total are Tjetër, so a second request counts the Tjetër entries, unless a
+// category filter already says: Tjetër, so all of them are, or a goods category, so none is.
+export async function fetchTotalsWithTjeter(filters) {
+  const tjeterId = String(CATEGORY_IDS.TJETER);
+  const countTjeter = Boolean(filters.bleresi_id) && !filters.kategoria_id;
+  const [totals, tjeter] = await Promise.all([
+    fetchEntryTotals(filters),
+    countTjeter ? fetchEntryTotals({ ...filters, kategoria_id: tjeterId }) : null
+  ]);
+  if (!filters.bleresi_id) return totals;
+  for (const v of VEPRIME) {
+    const line = totals[v.value];
+    const tjeterCount = tjeter ? tjeter[v.value].count : String(filters.kategoria_id) === tjeterId ? line.count : 0;
+    line.countMall = line.count - tjeterCount;
   }
   return totals;
 }
