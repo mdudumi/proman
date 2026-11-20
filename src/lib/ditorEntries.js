@@ -102,15 +102,30 @@ export function withFilter(filters, name, value, produkte) {
 // Tjetër entries are money movements (reconciliations, bank, cash, VAT), not goods.
 export const isTjeterEntry = row => row.kategoria?.id === CATEGORY_IDS.TJETER;
 
-// Money that came in to the owner: a Dalje (a sale), Tjetër or not. A Hyrje is money that went out.
-export const isMoneyIn = row => row.veprimi === "Shitje/Dalje";
+// Every Veprimi an entry can have, in the order the dropdowns list them. The database accepts
+// only these (ditor_veprimi_check).
+export const VEPRIMI_OPTIONS = ["Hyrje/Blerje", "Shitje/Dalje", "Import", "Export"];
 
+// Import counts as a Hyrje (goods in, money paid) and Export as a Dalje (goods out, money
+// received), in every total, stock and account, the database functions too
+// (supabase/migrations/20261119_import_export.sql).
+const DIRECTION = { Import: "Hyrje/Blerje", Export: "Shitje/Dalje" };
+
+// The VEPRIME line a Veprimi counts in.
+export const direction = veprimi => DIRECTION[veprimi] || veprimi;
+
+// Money that came in to the owner: a Dalje (a sale) or an Export, Tjetër or not. A Hyrje or an
+// Import is money that went out.
+export const isMoneyIn = row => direction(row.veprimi) === "Shitje/Dalje";
+
+// The two directions the totals go by.
 export const VEPRIME = [
   { value: "Hyrje/Blerje", label: "Hyrje" },
   { value: "Shitje/Dalje", label: "Dalje" }
 ];
 
-// Totals per action (Hyrje, Dalje): number of entries, kilograms and lekë.
+// Totals per direction (Hyrje with the Imports, Dalje with the Exports): number of entries,
+// kilograms and lekë.
 // A Tjetër entry's lekë counts, but its quantity is not kilograms, so it's left out of
 // `sasia`; `shumaMall` holds the goods-only lekë that the average price per kg uses.
 export function entryTotals(rows) {
@@ -119,7 +134,7 @@ export function entryTotals(rows) {
   );
 
   for (const row of rows) {
-    const line = totals[row.veprimi];
+    const line = totals[direction(row.veprimi)];
     if (!line) continue;
     const shuma = Number(row.shuma_leke || 0);
     line.count += 1;
@@ -146,15 +161,18 @@ export const averagePerKg = line => (line.sasia ? line.shumaMall / line.sasia : 
 // came in than went out. Like the average, they're null unless one product is picked: kg across
 // many products says nothing useful. With `selected`, the labels say the entries are the selected ones.
 // The Dalje line is `moneyIn`: its lekë came in, so they get a "+".
+// Filtered to Import or Export, the one line is named after it: it holds only those entries.
 export function totalsLines(totals, filters, { selected = false } = {}) {
   const oneProduct = Boolean(filters.produkti_id);
-  const lines = VEPRIME.filter(v => !filters.veprimi || v.value === filters.veprimi).map(v => {
+  const picked = filters.veprimi && direction(filters.veprimi);
+  const lines = VEPRIME.filter(v => !picked || v.value === picked).map(v => {
     const line = totals[v.value];
     const one = line.count === 1;
     const entries = `${line.count.toLocaleString("en-US")} ${one ? "regjistrim" : "regjistrime"}${selected ? (one ? " i zgjedhur" : " të zgjedhura") : ""}`;
+    const name = filters.veprimi && filters.veprimi !== v.value ? filters.veprimi : v.label;
     return {
       key: v.value,
-      label: `Totali ${v.label} (${entries})`,
+      label: `Totali ${name} (${entries})`,
       sasia: line.sasia,
       shuma: line.shuma,
       average: oneProduct ? averagePerKg(line) : null,
@@ -194,7 +212,8 @@ export const byEntryOrder = (a, b) =>
 
 // The same totals as entryTotals, for every entry matching the filters, added up by the
 // database (rpc_ditor_totals, supabase/migrations/20261026_ditor_totals.sql) instead of
-// downloading the entries.
+// downloading the entries. It returns a row per Veprimi, so Import is added into the Hyrje line
+// and Export into the Dalje line here.
 export async function fetchEntryTotals(filters) {
   const { data, error } = await supabase.rpc("rpc_ditor_totals", {
     p_from_date: filters.fromDate || null,
@@ -209,12 +228,12 @@ export async function fetchEntryTotals(filters) {
 
   const totals = entryTotals([]);
   for (const row of data || []) {
-    const line = totals[row.veprimi];
+    const line = totals[direction(row.veprimi)];
     if (!line) continue;
-    line.count = Number(row.regjistrime);
-    line.sasia = Number(row.sasia);
-    line.shuma = Number(row.shuma);
-    line.shumaMall = Number(row.shuma_mall);
+    line.count += Number(row.regjistrime);
+    line.sasia += Number(row.sasia);
+    line.shuma += Number(row.shuma);
+    line.shumaMall += Number(row.shuma_mall);
   }
   return totals;
 }

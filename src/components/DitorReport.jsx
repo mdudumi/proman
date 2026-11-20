@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { fetchBalanceTotals } from "../lib/bilanci";
+import { VEPRIMI_OPTIONS } from "../lib/ditorEntries";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBand } from "../lib/pdfPage";
 import { SIGNED_MONEY_FORMAT, plus } from "../lib/format";
@@ -28,10 +29,7 @@ const nextPaint = () =>
 const SKELETON_ROWS = 8;
 const ROW_HEIGHT = 28;
 
-const VEPRIM_OPTIONS = [
-  { id: "Hyrje/Blerje", name: "Hyrje/Blerje" },
-  { id: "Shitje/Dalje", name: "Shitje/Dalje" }
-];
+const VEPRIM_OPTIONS = VEPRIMI_OPTIONS.map(veprimi => ({ id: veprimi, name: veprimi }));
 
 const FLAT_COLUMNS = [
   { key: "data", label: "Data", type: "text" },

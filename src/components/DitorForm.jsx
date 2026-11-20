@@ -2,6 +2,7 @@ import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { CATEGORY_IDS, NOT_ENTRY_CATEGORY_IDS } from "../lib/categoryIds";
 import { formatMoney } from "../lib/format";
+import { VEPRIMI_OPTIONS } from "../lib/ditorEntries";
 import SearchSelect from "./SearchSelect";
 import AmountInput from "./AmountInput";
 import DatePicker from "./DatePicker";
@@ -243,8 +244,11 @@ const DitorForm = forwardRef(function DitorForm(
             <label>Veprimi</label>
             <ClearableSelect value={form.veprimi} onChange={value => setField("veprimi", value)}>
               <option value="">Select</option>
-              <option value="Hyrje/Blerje">Hyrje/Blerje</option>
-              <option value="Shitje/Dalje">Shitje/Dalje</option>
+              {VEPRIMI_OPTIONS.map(veprimi => (
+                <option key={veprimi} value={veprimi}>
+                  {veprimi}
+                </option>
+              ))}
             </ClearableSelect>
           </div>
 

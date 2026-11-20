@@ -8,6 +8,7 @@ import {
   isMoneyIn,
   isTjeterEntry,
   selectionFilters,
+  VEPRIMI_OPTIONS,
   withFilter
 } from "../lib/ditorEntries";
 import { PDF_ROW_LIMIT, exportEntriesExcel, exportEntriesPdf } from "../lib/entriesExport";
@@ -412,8 +413,11 @@ export default function DitorTable({ refreshKey = 0 }) {
               onChange={value => setF("veprimi", value)}
             >
               <option value="">All</option>
-              <option value="Hyrje/Blerje">Hyrje/Blerje</option>
-              <option value="Shitje/Dalje">Shitje/Dalje</option>
+              {VEPRIMI_OPTIONS.map(veprimi => (
+                <option key={veprimi} value={veprimi}>
+                  {veprimi}
+                </option>
+              ))}
             </ClearableSelect>
           </div>
 
