@@ -513,10 +513,10 @@ export default function DitorTable({ refreshKey = 0 }) {
                 />
               </th>
               <th>Data</th>
+              <th>Bleresi/Shitesi</th>
               <th>Kategoria</th>
               <th>Produkti</th>
               <th>Monedha</th>
-              <th>Bleresi/Shitesi</th>
               <th>Veprimi</th>
               <th>Sasia</th>
               <th>Kosto/Njesi</th>
@@ -567,10 +567,10 @@ export default function DitorTable({ refreshKey = 0 }) {
                   />
                 </td>
                 <td title={r.data}>{formatDate(r.data)}</td>
+                <td title={r.bleresi?.name || ""}>{r.bleresi?.name}</td>
                 <td title={r.kategoria?.name || ""}>{r.kategoria?.name}</td>
                 <td title={r.produkti?.name || ""}>{r.produkti?.name}</td>
                 <td title={r.monedha?.name || ""}>{r.monedha?.name}</td>
-                <td title={r.bleresi?.name || ""}>{r.bleresi?.name}</td>
                 <td title={r.veprimi || ""}>{r.veprimi}</td>
                 <td className="num" title={isTjeterEntry(r) ? TJETER_HINT : undefined}>
                   {isTjeterEntry(r) ? "—" : withKg(r.sasia)}

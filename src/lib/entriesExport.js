@@ -12,7 +12,7 @@ import { TABLE_MARGIN, contentBox, drawContinuationBand, drawFooter, drawTitleBa
 export const PDF_ROW_LIMIT = 1000;
 
 const TITLE = "TË DHËNA TË REGJISTRUARA";
-const HEADERS = ["Data", "Kategoria", "Produkti", "Monedha", "Blerësi/Shitësi", "Veprimi", "Sasia (kg)", "Kosto/kg", "Shuma (lekë)"];
+const HEADERS = ["Data", "Blerësi/Shitësi", "Kategoria", "Produkti", "Monedha", "Veprimi", "Sasia (kg)", "Kosto/kg", "Shuma (lekë)"];
 const TJETER_NOTE =
   "Regjistrimet e kategorisë Tjetër (lëvizje parash) llogariten me shumën në lekë, pa sasi (kg) dhe pa kosto për kg.";
 // The kg of the Diferenca line in Excel, with its sign, as SIGNED_MONEY_FORMAT is for lekë.
@@ -36,10 +36,10 @@ function formatDate(value) {
 function textCells(row) {
   return [
     formatDate(row.data),
+    row.bleresi?.name || "",
     row.kategoria?.name || "",
     row.produkti?.name || "",
     row.monedha?.name || "",
-    row.bleresi?.name || "",
     row.veprimi || ""
   ];
 }
@@ -236,7 +236,7 @@ export async function exportEntriesExcel(rows, meta) {
     formatNumbers(row, { signedKg: line.difference, signedMoney: line.difference || line.moneyIn });
   }
 
-  [12, 16, 28, 14, 26, 14, 14, 12, 18].forEach((width, i) => (sheet.getColumn(i + 1).width = width));
+  [12, 26, 16, 28, 14, 14, 14, 12, 18].forEach((width, i) => (sheet.getColumn(i + 1).width = width));
 
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(
